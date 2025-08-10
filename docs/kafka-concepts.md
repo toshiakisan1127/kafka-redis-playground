@@ -358,51 +358,6 @@ flowchart TD
 3. **Processing Pattern**: Do they require similar handling logic?
 4. **Scaling Needs**: Do they have different throughput requirements?
 
-### Alternative Solutions
-
-#### 1. **Partition Key Based Routing**
-```java
-// Producer side - route by message type
-producer.send(new ProducerRecord<>(
-    "mixed-topic",
-    "order-events",  // partition key
-    orderMessage
-));
-
-producer.send(new ProducerRecord<>(
-    "mixed-topic", 
-    "analytics",     // different partition key
-    analyticsMessage
-));
-```
-
-#### 2. **Consumer Subscription by Partition**
-```java
-// Order Service subscribes only to "order-events" partitions
-consumer.assign(Arrays.asList(
-    new TopicPartition("mixed-topic", 0),  // order-events partition
-    new TopicPartition("mixed-topic", 1)   // order-events partition
-));
-```
-
-#### 3. **Message Type with Filtering** (Less Efficient)
-```java
-@KafkaListener(topics = "orders")
-public void processOrder(OrderMessage message) {
-    switch(message.getType()) {
-        case ORDER_CREATED:
-            handleOrderCreation(message);
-            break;
-        case ORDER_CANCELLED:
-            handleOrderCancellation(message);
-            break;
-        case ORDER_ANALYTICS:  // Still order-related
-            // Different consumer group should handle this
-            break;
-    }
-}
-```
-
 ### 🎯 Design Principles
 
 #### **"Send Only Relevant Messages"**
@@ -430,20 +385,14 @@ public void processOrder(OrderMessage message) {
 └── OR orders (fine if same services process all types)
 ```
 
-#### **When to Use Filtering**
-- **Sub-types within same domain**: Order types (premium, standard, bulk)
-- **Temporary migration**: Gradually splitting monolithic topics
-- **Legacy system integration**: Cannot change existing producers
-
 ### 🚀 Best Practices Summary
 
 1. **Design topics by business domain**, not technical boundaries
 2. **Keep related message types together** if same consumers process them
 3. **Separate unrelated concerns** into different topics
 4. **Apply the golden rule**: Same consumers → Same topic, Different consumers → Different topics
-5. **Use partition keys** for ordered processing within message types
-6. **Avoid consumer-side filtering** when possible
-7. **Think about consumer needs** when designing topics
+5. **Avoid consumer-side filtering** when possible
+6. **Think about consumer needs** when designing topics
 
 **Remember**: Consumers process ALL messages from their assigned partitions. Design your topics so that "ALL messages" are "relevant messages"! 🎯
 
