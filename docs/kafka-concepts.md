@@ -289,6 +289,75 @@ graph TB
     T4 --> C4
 ```
 
+### 🏆 The Golden Rule of Topic Design
+
+> **If different consumers will process the messages → Separate topics**  
+> **If the same consumers will process the messages → Same topic**
+
+#### ✅ Examples of Correct Same-Topic Design
+```
+Topic: orders (same consumers process all)
+├── order-created, order-updated, order-cancelled
+├── All processed by: Order Service, Inventory Service, Analytics
+└── Same data, different purposes ✅
+
+Topic: user-events (same consumers process all)  
+├── user-registered, user-updated, user-deleted
+├── All processed by: User Service, Notification Service, Analytics
+└── Same data, different purposes ✅
+```
+
+#### ❌ Examples When to Split Topics
+```
+❌ Topic: business-events
+├── orders, inventory, users, payments mixed
+├── Order Service only wants orders
+├── Payment Service only wants payments
+└── Forces unnecessary filtering
+
+✅ Split into:
+├── Topic: orders → Order Service
+├── Topic: inventory → Inventory Service  
+├── Topic: users → User Service
+└── Topic: payments → Payment Service
+```
+
+#### 🤔 Gray Area Examples
+```
+Could be same topic OR separate - depends on consumers:
+
+Option 1: Fine-grained topics
+├── order-created → Order Processing Service
+├── order-shipped → Logistics Service  
+├── order-cancelled → Refund Service
+└── Different consumers → Separate topics ✅
+
+Option 2: Coarse-grained topic  
+├── orders (all events) → Order Management System
+├── Same consumer handles all types
+└── Same consumer → Same topic ✅
+```
+
+### 🎯 Decision Framework
+
+```mermaid
+flowchart TD
+    A[New Message Type] --> B{Will existing consumers<br/>process this message?}
+    B -->|Yes| C[Add to existing topic]
+    B -->|No| D{Will new consumers<br/>process existing messages?}
+    D -->|Yes| C
+    D -->|No| E[Create new topic]
+    
+    C --> F[Same Topic Strategy<br/>📋 Same business domain<br/>🔄 Same processing pattern]
+    E --> G[Separate Topic Strategy<br/>🎯 Different business domain<br/>⚙️ Different processing needs]
+```
+
+#### **Questions to Ask:**
+1. **Consumer Overlap**: Do the same services need to process these messages?
+2. **Business Domain**: Are these messages part of the same business process?
+3. **Processing Pattern**: Do they require similar handling logic?
+4. **Scaling Needs**: Do they have different throughput requirements?
+
 ### Alternative Solutions
 
 #### 1. **Partition Key Based Routing**
@@ -343,18 +412,22 @@ public void processOrder(OrderMessage message) {
 
 #### **Topic Granularity Guidelines**
 ```
-✅ Good Topic Design:
-├── orders-created
-├── orders-updated  
-├── orders-cancelled
-├── inventory-updates
-├── user-registrations
-└── user-logins
+✅ Good Topic Design (by business domain):
+├── orders (order-created, order-updated, order-cancelled)
+├── inventory (stock-added, stock-reduced, stock-adjusted)
+├── users (user-registered, user-updated, user-deleted)
+└── payments (payment-initiated, payment-completed, payment-failed)
 
-❌ Poor Topic Design:
+❌ Poor Topic Design (mixed domains):
 ├── everything
 ├── mixed-events
-└── all-data
+└── all-business-data
+
+🤔 Context-Dependent (depends on consumers):
+├── order-created (fine if only Order Service processes)
+├── order-updated (fine if only Order Service processes)  
+├── order-cancelled (fine if only Order Service processes)
+└── OR orders (fine if same services process all types)
 ```
 
 #### **When to Use Filtering**
@@ -365,11 +438,12 @@ public void processOrder(OrderMessage message) {
 ### 🚀 Best Practices Summary
 
 1. **Design topics by business domain**, not technical boundaries
-2. **Keep related message types together** (orders, inventory, users)
+2. **Keep related message types together** if same consumers process them
 3. **Separate unrelated concerns** into different topics
-4. **Use partition keys** for ordered processing within message types
-5. **Avoid consumer-side filtering** when possible
-6. **Think about consumer needs** when designing topics
+4. **Apply the golden rule**: Same consumers → Same topic, Different consumers → Different topics
+5. **Use partition keys** for ordered processing within message types
+6. **Avoid consumer-side filtering** when possible
+7. **Think about consumer needs** when designing topics
 
 **Remember**: Consumers process ALL messages from their assigned partitions. Design your topics so that "ALL messages" are "relevant messages"! 🎯
 
@@ -420,6 +494,8 @@ Consumer Group: analytics
 - **inventory-updates**: Updates stock levels  
 - **analytics**: Generates business reports
 
+**Why same topic works**: All three consumer groups want to process ALL order messages, just for different business purposes.
+
 ### Message Replay Scenario
 ```bash
 # Reset consumer group offset to replay messages
@@ -451,6 +527,7 @@ kafka-consumer-groups --bootstrap-server localhost:9092 \
 - **Design message keys** for even partition distribution
 - **Group related messages** in same topic
 - **Separate unrelated concerns** into different topics
+- **Apply the golden rule**: Same consumers → Same topic, Different consumers → Different topics
 
 ---
 *Understanding these concepts is crucial for building reliable, scalable applications with Kafka! 🎉*
