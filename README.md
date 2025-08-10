@@ -58,17 +58,42 @@ docker-compose down
 docker-compose down -v
 ```
 
+## 📚 Documentation
+
+### Architecture & Concepts
+- [`docs/architecture.md`](docs/architecture.md) - Docker Compose setup and service relationships with visual diagrams
+- [`docs/kafka-concepts.md`](docs/kafka-concepts.md) - Comprehensive Kafka fundamentals, best practices, and design patterns
+- [`docs/zookeeper-deep-dive.md`](docs/zookeeper-deep-dive.md) - Zookeeper's role in cluster management and coordination
+
+### Learning Path
+1. **Start here**: [`docs/architecture.md`](docs/architecture.md) - Understand the overall setup and how services connect
+2. **Core concepts**: [`docs/kafka-concepts.md`](docs/kafka-concepts.md) - Learn Kafka fundamentals, offset management, and topic design
+3. **Deep dive**: [`docs/zookeeper-deep-dive.md`](docs/zookeeper-deep-dive.md) - Master cluster coordination and distributed system concepts
+
 ## Planned Features
 
 - [x] Docker environment setup
+- [x] Comprehensive documentation with visual diagrams
+- [x] Kafka and Zookeeper architecture explanation
 - [ ] Kafka producer and consumer implementation
 - [ ] Redis caching strategies
 - [ ] Message processing with Kafka + Redis integration
+- [ ] Spring Boot application examples
 - [ ] Configuration examples and best practices
 
 ## Learning Goals
 
-- Understanding Kafka messaging patterns
-- Implementing Redis caching strategies  
+- Understanding Kafka messaging patterns and distributed system design
+- Implementing Redis caching strategies with real-world examples
 - Building distributed systems with event-driven architecture
 - Hands-on experience with containerized development environments
+- Mastering Kafka concepts: brokers, topics, partitions, consumers, and offset management
+- Learning Zookeeper's role in cluster coordination and leader election
+
+## Contributing
+
+Contributions are welcome! Whether it's improving documentation, adding examples, or fixing issues, feel free to open a pull request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
