@@ -413,6 +413,7 @@ flowchart TD
 - Messages remain available for retry
 - Offset controls what gets processed
 - Multiple consumer groups can process same data independently
+- **Message Recovery**: Can replay messages by resetting consumer group offsets when needed
 
 ## 🎯 Practical Examples
 
@@ -444,17 +445,6 @@ Consumer Group: analytics
 - **analytics**: Generates business reports
 
 **Why same topic works**: All three consumer groups want to process ALL order messages, just for different business purposes.
-
-### Message Replay Scenario
-```bash
-# Reset consumer group offset to replay messages
-kafka-consumer-groups --bootstrap-server localhost:9092 \
-  --group analytics \
-  --topic orders \
-  --reset-offsets \
-  --to-earliest \
-  --execute
-```
 
 ## 🚀 Best Practices
 
