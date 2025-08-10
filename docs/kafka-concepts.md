@@ -199,6 +199,180 @@ graph TD
     K --> F
 ```
 
+## 🎯 Message Filtering and Topic Design
+
+### The "Irrelevant Messages" Problem
+
+**Common Scenario**: Multiple producers sending different types of messages
+```mermaid
+graph TB
+    subgraph "Multiple Producers"
+        P1[Web App<br/>Order Creation]
+        P2[Mobile App<br/>Order Updates]
+        P3[Admin Tool<br/>System Messages]
+        P4[Analytics<br/>Report Data]
+    end
+    
+    subgraph "Topic: everything"
+        PT[Mixed Messages<br/>Orders, Analytics, Admin, etc.]
+    end
+    
+    subgraph "Consumers"
+        C1[Order Service<br/>Only wants order messages]
+        C2[Analytics Service<br/>Only wants analytics data]
+        C3[Admin Service<br/>Only wants admin messages]
+    end
+    
+    P1 --> PT
+    P2 --> PT
+    P3 --> PT
+    P4 --> PT
+    
+    PT --> C1
+    PT --> C2
+    PT --> C3
+    
+    C1 -.->|Filters & ignores| X1[Analytics messages ❌]
+    C1 -.->|Filters & ignores| X2[Admin messages ❌]
+```
+
+**Problem**: Consumers receive ALL messages and must filter out irrelevant ones.
+
+### ❌ Anti-Pattern: Consumer-Side Filtering
+```java
+// Order Service has to process everything
+@KafkaListener(topics = "everything")
+public void processMessage(String message) {
+    if (message.type.equals("ORDER_CREATED") || 
+        message.type.equals("ORDER_UPDATED")) {
+        // Process order message
+        handleOrder(message);
+    } else {
+        // Ignore analytics, admin, etc. messages
+        // ❌ Wasteful - received unnecessary data
+    }
+}
+```
+
+### ✅ Best Practice: Topic Separation
+```mermaid
+graph TB
+    subgraph "Multiple Producers"
+        P1[Web App]
+        P2[Mobile App]
+        P3[Admin Tool]
+        P4[Analytics Engine]
+    end
+    
+    subgraph "Separate Topics"
+        T1[orders]
+        T2[user-events]
+        T3[admin-messages]
+        T4[analytics-data]
+    end
+    
+    subgraph "Focused Consumers"
+        C1[Order Service<br/>📋 orders topic only]
+        C2[User Service<br/>👤 user-events topic only]
+        C3[Admin Service<br/>⚙️ admin-messages topic only]
+        C4[Analytics Service<br/>📊 analytics-data topic only]
+    end
+    
+    P1 --> T1
+    P2 --> T2
+    P3 --> T3
+    P4 --> T4
+    
+    T1 --> C1
+    T2 --> C2
+    T3 --> C3
+    T4 --> C4
+```
+
+### Alternative Solutions
+
+#### 1. **Partition Key Based Routing**
+```java
+// Producer side - route by message type
+producer.send(new ProducerRecord<>(
+    "mixed-topic",
+    "order-events",  // partition key
+    orderMessage
+));
+
+producer.send(new ProducerRecord<>(
+    "mixed-topic", 
+    "analytics",     // different partition key
+    analyticsMessage
+));
+```
+
+#### 2. **Consumer Subscription by Partition**
+```java
+// Order Service subscribes only to "order-events" partitions
+consumer.assign(Arrays.asList(
+    new TopicPartition("mixed-topic", 0),  // order-events partition
+    new TopicPartition("mixed-topic", 1)   // order-events partition
+));
+```
+
+#### 3. **Message Type with Filtering** (Less Efficient)
+```java
+@KafkaListener(topics = "orders")
+public void processOrder(OrderMessage message) {
+    switch(message.getType()) {
+        case ORDER_CREATED:
+            handleOrderCreation(message);
+            break;
+        case ORDER_CANCELLED:
+            handleOrderCancellation(message);
+            break;
+        case ORDER_ANALYTICS:  // Still order-related
+            // Different consumer group should handle this
+            break;
+    }
+}
+```
+
+### 🎯 Design Principles
+
+#### **"Send Only Relevant Messages"**
+- **Topic Design**: Group related messages together
+- **Producer Responsibility**: Send to appropriate topics
+- **Consumer Simplicity**: Process everything received
+
+#### **Topic Granularity Guidelines**
+```
+✅ Good Topic Design:
+├── orders-created
+├── orders-updated  
+├── orders-cancelled
+├── inventory-updates
+├── user-registrations
+└── user-logins
+
+❌ Poor Topic Design:
+├── everything
+├── mixed-events
+└── all-data
+```
+
+#### **When to Use Filtering**
+- **Sub-types within same domain**: Order types (premium, standard, bulk)
+- **Temporary migration**: Gradually splitting monolithic topics
+- **Legacy system integration**: Cannot change existing producers
+
+### 🚀 Best Practices Summary
+
+1. **Design topics by business domain**, not technical boundaries
+2. **Keep related message types together** (orders, inventory, users)
+3. **Separate unrelated concerns** into different topics
+4. **Use partition keys** for ordered processing within message types
+5. **Avoid consumer-side filtering** when possible
+6. **Think about consumer needs** when designing topics
+
+**Remember**: Consumers process ALL messages from their assigned partitions. Design your topics so that "ALL messages" are "relevant messages"! 🎯
+
 ## ⚠️ Error Handling
 
 ### Producer Errors
@@ -263,16 +437,20 @@ kafka-consumer-groups --bootstrap-server localhost:9092 \
 - **Use appropriate partition key** for message ordering
 - **Configure proper ACK level** for durability vs performance
 - **Handle failures gracefully** with retries
+- **Send to appropriate topics** to minimize consumer filtering
 
 ### Consumer
 - **Process messages idempotently** (handle duplicates)
 - **Commit offsets only after successful processing**
 - **Monitor consumer lag** for performance issues
+- **Subscribe to relevant topics only**
 
 ### Topic Design
 - **Choose partition count** based on parallelism needs
 - **Set appropriate retention** for storage vs replay requirements
 - **Design message keys** for even partition distribution
+- **Group related messages** in same topic
+- **Separate unrelated concerns** into different topics
 
 ---
 *Understanding these concepts is crucial for building reliable, scalable applications with Kafka! 🎉*
