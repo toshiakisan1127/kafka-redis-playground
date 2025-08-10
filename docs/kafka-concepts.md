@@ -221,20 +221,30 @@ graph TD
 
 ### E-commerce Order Processing
 ```
-Topic: orders
-├── Partition 0: Order processing service
-├── Partition 1: Inventory service  
-└── Partition 2: Payment service
+Topic: orders (contains all order-related messages)
+├── Partition 0: [order1][order4][order7][order10]
+├── Partition 1: [order2][order5][order8][order11]  
+└── Partition 2: [order3][order6][order9][order12]
 
-Consumer Group: order-fulfillment
-├── Consumer 1: Processes P0 (offset: 1250)
-├── Consumer 2: Processes P1 (offset: 980)
-└── Consumer 3: Processes P2 (offset: 1100)
+Consumer Group: order-processing
+├── Consumer 1: Processes P0 → sends to order service
+├── Consumer 2: Processes P1 → sends to order service
+└── Consumer 3: Processes P2 → sends to order service
+
+Consumer Group: inventory-updates
+├── Consumer A: Processes P0 → updates inventory
+├── Consumer B: Processes P1 → updates inventory
+└── Consumer C: Processes P2 → updates inventory
 
 Consumer Group: analytics
-├── Consumer A: Processes all partitions for reporting
+├── Consumer X: Processes all partitions → generates reports
 └── Different offsets, independent processing
 ```
+
+**Key Point**: Each consumer group processes the same order messages but for different purposes:
+- **order-processing**: Fulfills orders
+- **inventory-updates**: Updates stock levels  
+- **analytics**: Generates business reports
 
 ### Message Replay Scenario
 ```bash
