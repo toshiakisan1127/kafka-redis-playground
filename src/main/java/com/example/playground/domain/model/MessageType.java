@@ -7,5 +7,8 @@ public enum MessageType {
     INFO,
     WARNING,
     ERROR,
-    SUCCESS
+    SUCCESS,
+    ORDER,
+    NOTIFICATION,
+    EVENT
 }
