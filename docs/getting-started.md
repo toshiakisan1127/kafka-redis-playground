@@ -5,15 +5,8 @@ This guide provides detailed instructions for setting up and running the Kafka &
 ## Prerequisites
 
 ### Required Software
-- **Java 23** - Latest stable JDK
-- **Docker** and **Docker Compose** - For running Kafka and Redis
+- **Docker** and **Docker Compose** - For running the entire stack
 - **Git** - For cloning the repository
-
-### Java 23 Setup
-Configure your IDE to use Java 23:
-- **IntelliJ IDEA**: File → Project Structure → Project → SDK → Java 23
-- **VS Code**: Java Extension Pack → Configure Java Runtime
-- **Eclipse**: Project Properties → Java Build Path → Libraries → Modulepath/Classpath → JRE System Library
 
 ## Installation
 
@@ -23,48 +16,27 @@ git clone https://github.com/toshiakisan1127/kafka-redis-playground.git
 cd kafka-redis-playground
 ```
 
-### 2. Start Infrastructure Services
+### 2. Start Everything with Docker Compose
 ```bash
-# Start all services in detached mode
+# Start all services including Spring Boot app
 docker-compose up -d
+
+# Or build and start (if code changed)
+docker-compose up --build -d
 
 # Verify all services are running
 docker-compose ps
 
 # Expected output:
-# zookeeper      Running
-# kafka          Running
-# redis          Running
-# redis-insight  Running
-# kafka-ui       Running
+# zookeeper               Running
+# kafka                   Running  
+# redis                   Running
+# redis-insight           Running
+# kafka-ui                Running
+# kafka-redis-app         Running
 ```
 
-### 3. Verify Infrastructure
-```bash
-# Check Kafka is ready
-docker exec -it kafka kafka-topics.sh \
-  --bootstrap-server localhost:9092 \
-  --list
-
-# Check Redis is ready
-docker exec -it redis redis-cli ping
-# Expected: PONG
-```
-
-### 4. Run the Spring Boot Application
-```bash
-# Option 1: Standard startup
-./gradlew bootRun
-
-# Option 2: Development mode (with optimized JVM settings)
-./gradlew runApp
-
-# Option 3: Build and run JAR
-./gradlew bootJar
-java -jar build/libs/kafka-redis-playground-1.0.0.jar
-```
-
-### 5. Verify Application
+### 3. Verify Application
 ```bash
 # Health check
 curl http://localhost:8888/actuator/health
@@ -110,6 +82,37 @@ curl http://localhost:8888/api/messages/sender/getting-started | jq
 curl http://localhost:8888/api/messages/urgent | jq
 ```
 
+## Watching the Processing Delay
+
+The app is configured with a **3-second processing delay** to make Kafka message processing visible:
+
+### Send Multiple Messages
+```bash
+# Send 5 messages quickly
+for i in {1..5}; do
+  curl -X POST http://localhost:8888/api/messages \
+    -H "Content-Type: application/json" \
+    -d "{\"content\": \"Demo message $i\", \"sender\": \"demo\", \"type\": \"INFO\"}"
+done
+```
+
+### Watch in Kafka UI
+1. Go to http://localhost:8080
+2. Navigate to **Topics → messages**
+3. See messages being processed one by one with 3-second delays
+
+### Watch the Logs
+```bash
+# Follow Spring Boot app logs
+docker-compose logs -f app
+
+# You'll see:
+# 🚀 Received message: key=uuid-1234, partition=0, offset=15
+# ⏳ Processing delay: 3000ms for better observation...
+# 💾 Saving message to Redis: id=uuid-1234, content='Demo message 1'
+# ✅ Message processed and saved: id=uuid-1234, sender=demo, type=INFO
+```
+
 ## Data Management
 
 ### Clear All Redis Data
@@ -122,7 +125,7 @@ docker exec -it redis redis-cli FLUSHDB
 
 # Option 3: Via Redis Insight UI
 # - Go to http://localhost:8001
-# - Connect to localhost:6379
+# - Connect to redis:6379 (internal) or localhost:6379 (external)
 # - Use "Flush Database" button
 
 # Verify Redis is empty
@@ -142,17 +145,11 @@ docker exec -it kafka kafka-topics.sh \
 
 ### Reset Everything
 ```bash
-# Stop application if running
-# Ctrl+C or kill the process
-
 # Stop and remove all containers + volumes
 docker-compose down -v
 
 # Start fresh
-docker-compose up -d
-
-# Restart application
-./gradlew bootRun
+docker-compose up --build -d
 ```
 
 ## Verification Steps
@@ -170,51 +167,46 @@ docker-compose up -d
 # In Redis Insight (http://localhost:8001)
 # - Connect to localhost:6379
 # - Browse keys starting with "message:"
-# - You should see your cached messages
+# - You should see your cached messages as Sets (no duplicates!)
 ```
 
 ### 3. Check Application Logs
 ```bash
 # View application logs
-./gradlew bootRun --info
+docker-compose logs -f app
 
 # Key log entries to look for:
 # - "Started KafkaRedisPlaygroundApplication"
-# - "Cluster ID: [kafka-cluster-id]"
-# - Topic creation logs
+# - "🚀 Received message" 
+# - "⏳ Processing delay"
+# - "✅ Message processed and saved"
 ```
 
-## Environment Configuration
+## Configuration
 
-### Default Ports
-- **Application**: 8888
-- **Kafka**: 9092
-- **Redis**: 6379
-- **Kafka UI**: 8080
-- **Redis Insight**: 8001
+### Environment Variables (in docker-compose.yml)
+```yaml
+environment:
+  # Kafka settings (internal network)
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  
+  # Redis settings (internal network) 
+  SPRING_DATA_REDIS_HOST: redis
+  
+  # Processing delay for demo (3 seconds)
+  APP_KAFKA_CONSUMER_PROCESSING_DELAY: 3000
+```
 
-### Environment Variables
+### Customize Processing Delay
 ```bash
-# Application settings
-export SPRING_PROFILES_ACTIVE=dev
-export SERVER_PORT=8888
+# Edit docker-compose.yml
+APP_KAFKA_CONSUMER_PROCESSING_DELAY: 5000  # 5 seconds
+# or
+APP_KAFKA_CONSUMER_PROCESSING_DELAY: 0     # No delay
 
-# Kafka settings
-export SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-export APP_KAFKA_TOPIC_MESSAGES=messages
-
-# Redis settings
-export SPRING_DATA_REDIS_HOST=localhost
-export SPRING_DATA_REDIS_PORT=6379
+# Restart app
+docker-compose restart app
 ```
-
-## What Happens During Startup
-
-1. **Infrastructure Check**: Spring Boot connects to Kafka and Redis
-2. **Topic Creation**: `messages` and `messages.DLQ` topics are auto-created
-3. **Consumer Registration**: Message consumer group is registered with Kafka
-4. **Cache Initialization**: Redis connection pool is established
-5. **API Activation**: REST endpoints become available
 
 ## Development Tips
 
@@ -224,13 +216,15 @@ export SPRING_DATA_REDIS_PORT=6379
 docker exec -it redis redis-cli FLUSHALL
 
 # 2. Send test messages
-curl -X POST http://localhost:8888/api/messages \
-  -H "Content-Type: application/json" \
-  -d '{"content": "Test message 1", "sender": "dev", "type": "INFO"}'
+for i in {1..3}; do
+  curl -X POST http://localhost:8888/api/messages \
+    -H "Content-Type: application/json" \
+    -d "{\"content\": \"Test $i\", \"sender\": \"test\", \"type\": \"INFO\"}"
+done
 
-# 3. Verify no duplicates
+# 3. Verify no duplicates (thanks to Redis Sets!)
 curl http://localhost:8888/api/messages | jq 'length'
-# Should show: 1 (not 2)
+# Should show: 3 (not 6)
 ```
 
 ### Common Commands
@@ -256,7 +250,33 @@ docker exec -it kafka kafka-topics.sh \
 docker exec -it kafka kafka-topics.sh \
   --bootstrap-server localhost:9092 \
   --describe --topic messages
+
+# Rebuild only the app (after code changes)
+docker-compose build app
+docker-compose restart app
 ```
+
+## Architecture Features
+
+### ✅ **Onion Architecture**
+- Clean separation of concerns
+- Domain-driven design
+- Testable and maintainable
+
+### ✅ **No Duplicate Messages**
+- Publisher sends to Kafka only
+- Consumer saves to Redis only
+- Redis Sets prevent ID duplicates
+
+### ✅ **Observable Processing**
+- 3-second delay makes Kafka processing visible
+- Rich logging with emojis
+- Real-time monitoring via Kafka UI
+
+### ✅ **Complete Docker Stack**
+- No local Java/Gradle installation needed
+- Consistent environment across machines
+- Easy deployment and scaling
 
 ## Next Steps
 
