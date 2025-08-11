@@ -23,7 +23,7 @@ import java.util.Set;
 public class RedisMessageRepository implements MessageRepository {
     
     private static final String MESSAGE_KEY_PREFIX = "message:";
-    private static final String MESSAGE_LIST_KEY = "messages";
+    private static final String MESSAGE_SET_KEY = "messages"; // ListからSetに変更
     private static final String SENDER_INDEX_PREFIX = "sender:";
     
     private final RedisTemplate<String, String> redisTemplate;
@@ -44,11 +44,11 @@ public class RedisMessageRepository implements MessageRepository {
             String messageJson = objectMapper.writeValueAsString(new MessageDto(message));
             redisTemplate.opsForValue().set(messageKey, messageJson);
             
-            // 全メッセージのリストに追加
-            redisTemplate.opsForList().rightPush(MESSAGE_LIST_KEY, message.getId());
+            // 全メッセージのSetに追加（重複は自動で排除される）
+            redisTemplate.opsForSet().add(MESSAGE_SET_KEY, message.getId());
             
-            // 送信者インデックスに追加
-            redisTemplate.opsForList().rightPush(senderIndexKey, message.getId());
+            // 送信者インデックスにも追加（こちらもSetに変更）
+            redisTemplate.opsForSet().add(senderIndexKey, message.getId());
             
             return message;
         } catch (JsonProcessingException e) {
@@ -76,7 +76,7 @@ public class RedisMessageRepository implements MessageRepository {
     @Override
     public List<Message> findBySender(String sender) {
         String senderIndexKey = SENDER_INDEX_PREFIX + sender;
-        List<String> messageIds = redisTemplate.opsForList().range(senderIndexKey, 0, -1);
+        Set<String> messageIds = redisTemplate.opsForSet().members(senderIndexKey);
         
         if (messageIds == null || messageIds.isEmpty()) {
             return new ArrayList<>();
@@ -91,7 +91,7 @@ public class RedisMessageRepository implements MessageRepository {
     
     @Override
     public List<Message> findAll() {
-        List<String> messageIds = redisTemplate.opsForList().range(MESSAGE_LIST_KEY, 0, -1);
+        Set<String> messageIds = redisTemplate.opsForSet().members(MESSAGE_SET_KEY);
         
         if (messageIds == null || messageIds.isEmpty()) {
             return new ArrayList<>();
@@ -114,13 +114,13 @@ public class RedisMessageRepository implements MessageRepository {
         // メッセージを削除
         redisTemplate.delete(messageKey);
         
-        // リストからIDを削除
-        redisTemplate.opsForList().remove(MESSAGE_LIST_KEY, 1, id);
+        // SetからIDを削除
+        redisTemplate.opsForSet().remove(MESSAGE_SET_KEY, id);
         
         // 送信者インデックスからも削除
         if (message.isPresent()) {
             String senderIndexKey = SENDER_INDEX_PREFIX + message.get().getSender();
-            redisTemplate.opsForList().remove(senderIndexKey, 1, id);
+            redisTemplate.opsForSet().remove(senderIndexKey, id);
         }
     }
     
