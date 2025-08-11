@@ -148,7 +148,7 @@ sequenceDiagram
     Controller-->>-Client: 200 OK + CleanupResponse
 ```
 
-## エラーハンドリングフロー
+## Kafka送信エラーフロー
 
 ```mermaid
 sequenceDiagram
@@ -157,38 +157,90 @@ sequenceDiagram
     participant Service as MessageService
     participant Publisher as KafkaMessagePublisher
     participant Kafka as Kafka Broker
-    participant Consumer as KafkaMessageConsumer
+
+    Client->>+Controller: POST /api/messages
+    Controller->>+Service: createAndSendMessage()
+    Service->>+Publisher: publish(message)
+    Publisher->>+Kafka: send()
+    Kafka-->>-Publisher: Exception
+    Publisher->>Publisher: ログ出力
+    Publisher-->>-Service: RuntimeException
+    Service-->>-Controller: RuntimeException
+    Controller-->>-Client: 500 Internal Server Error
+```
+
+## バリデーションエラーフロー
+
+```mermaid
+sequenceDiagram
+    participant Client as クライアント
+    participant Controller as MessageController
 
     Client->>+Controller: POST /api/messages (不正データ)
-    Controller->>Controller: @Valid検証
-    
-    alt バリデーションエラー
-        Controller-->>Client: 400 Bad Request
-    else バリデーション成功
-        Controller->>+Service: createAndSendMessage()
-        Service->>+Publisher: publish(message)
-        Publisher->>+Kafka: send()
-        
-        alt Kafka送信失敗
-            Kafka-->>-Publisher: Exception
-            Publisher->>Publisher: ログ出力
-            Publisher-->>Service: RuntimeException
-            Service-->>Controller: RuntimeException
-            Controller-->>-Client: 500 Internal Server Error
-        else Kafka送信成功
-            Kafka-->>-Publisher: Success
-            Publisher-->>-Service: void
-            Service-->>-Controller: Message
-            Controller-->>-Client: 201 Created
-        end
-    end
-    
-    Note over Consumer: 非同期エラー処理
+    Controller->>Controller: @Valid検証失敗
+    Controller-->>-Client: 400 Bad Request
+```
+
+## 非同期Consumer エラーフロー
+
+```mermaid
+sequenceDiagram
+    participant Kafka as Kafka Broker
+    participant Consumer as KafkaMessageConsumer
+
     Kafka->>+Consumer: 不正なメッセージ
     Consumer->>Consumer: JSON変換失敗
     Consumer->>Consumer: ログ出力
     Note over Consumer: DLQ送信<br/>（将来実装予定）
     Consumer-->>-Kafka: NACK
+```
+
+## Redis接続エラーフロー
+
+```mermaid
+sequenceDiagram
+    participant Client as クライアント
+    participant Controller as MessageController
+    participant Service as MessageService
+    participant Repository as RedisMessageRepository
+    participant Redis as Redis
+
+    Client->>+Controller: GET /api/messages
+    Controller->>+Service: getAllMessages()
+    Service->>+Repository: findAll()
+    Repository->>+Redis: smembers("messages")
+    Redis-->>-Repository: ConnectionException
+    Repository->>Repository: ログ出力（エラー）
+    Repository-->>-Service: RedisConnectionException
+    Service-->>-Controller: RedisConnectionException
+    Controller-->>-Client: 503 Service Unavailable
+```
+
+## Redis データ取得エラーフロー
+
+```mermaid
+sequenceDiagram
+    participant Repository as RedisMessageRepository
+    participant Redis as Redis
+
+    Repository->>+Redis: get("message:id")
+    Redis-->>-Repository: null
+    Repository->>Repository: ログ出力（警告）
+    Note over Repository: 欠損データスキップ
+```
+
+## グローバルエラーハンドリングフロー
+
+```mermaid
+sequenceDiagram
+    participant Controller as MessageController
+    participant GlobalHandler as @ControllerAdvice
+    participant Client as クライアント
+
+    Controller->>+GlobalHandler: Exception
+    GlobalHandler->>GlobalHandler: エラーレスポンス作成
+    GlobalHandler-->>-Controller: ErrorResponse
+    Controller-->>Client: HTTP Error + ErrorResponse
 ```
 
 ## 依存関係とアーキテクチャ
@@ -285,10 +337,16 @@ docker-compose run --rm app ./gradlew test jacocoTestReport
 - **Redis Sets使用**: 重複メッセージIDを自動で排除
 - **観察可能**: 3秒遅延でKafka処理フローを可視化
 
-### エラー処理
-- バリデーションエラーは400番台で返却
-- インフラエラーは500番台で返却
-- Kafkaの非同期エラーはログ出力とDLQ（将来実装）で対応
+### エラー処理の種類
+- **Kafka送信エラー**: 500 Internal Server Error
+- **バリデーションエラー**: 400 Bad Request  
+- **Redis接続エラー**: 503 Service Unavailable
+- **非同期Consumerエラー**: NACK + ログ出力
+
+### エラーハンドリング修正点
+- **単純化**: 各エラータイプを独立したシンプルなフローに分離
+- **パーティシパント管理**: 非アクティブエラーを完全排除
+- **明確な責任分離**: 同期・非同期・インフラエラーの区別
 
 ### 技術スタック
 - **Amazon Corretto 21** - 企業グレードJava環境
