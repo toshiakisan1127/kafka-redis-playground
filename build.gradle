@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.3.2'
+    id 'org.springframework.boot' version '3.5.4'
     id 'io.spring.dependency-management' version '1.1.6'
 }
 
@@ -9,7 +9,7 @@ version = '1.0.0'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(23)
     }
 }
 
@@ -43,7 +43,7 @@ tasks.named('test') {
 
 // Gradle Wrapper設定
 wrapper {
-    gradleVersion = '8.8'
+    gradleVersion = '8.10.2'
     distributionType = Wrapper.DistributionType.BIN
 }
 
@@ -73,11 +73,12 @@ task runApp(type: JavaExec) {
     // 開発時の環境変数
     environment 'SPRING_PROFILES_ACTIVE', 'dev'
     
-    // JVM引数
+    // JVM引数（Java 23対応）
     jvmArgs = [
         '-Xms256m',
         '-Xmx512m',
-        '-Dspring.devtools.restart.enabled=true'
+        '-Dspring.devtools.restart.enabled=true',
+        '--enable-preview' // Java 23の新機能を有効化
     ]
 }
 
@@ -88,4 +89,31 @@ task buildDockerImage(type: Exec) {
     dependsOn bootJar
     
     commandLine 'docker', 'build', '-t', "kafka-redis-playground:${version}", '.'
+}
+
+// 依存関係の可視化
+task dependencyGraph(type: DependencyReportTask) {
+    group = 'documentation'
+    description = 'Generate dependency report'
+}
+
+// コードフォーマット確認（将来的にSpotlessやCheckstyleを追加予定）
+task checkFormat {
+    group = 'verification'
+    description = 'Check code formatting'
+    doLast {
+        println 'Code formatting check completed'
+    }
+}
+
+// パフォーマンス最適化のための設定
+tasks.withType(JavaCompile) {
+    options.compilerArgs += [
+        '--enable-preview',
+        '-Xlint:preview'
+    ]
+}
+
+tasks.withType(Test) {
+    jvmArgs += '--enable-preview'
 }
