@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Zookeeper for Kafka (Local Development Only)
   zookeeper:
@@ -50,12 +48,15 @@ services:
     image: confluentinc/cp-kafka:7.4.0
     depends_on:
       - kafka
-    entrypoint: [ '/bin/sh', '-c' ]
-    command: |
+    entrypoint: ['/bin/sh', '-c']
+    command: >
       "
       # Kafkaが起動するまで待機
       echo 'Waiting for Kafka to be ready...'
-      kafka-topics --bootstrap-server kafka:29092 --list
+      while ! kafka-topics --bootstrap-server kafka:29092 --list >/dev/null 2>&1; do
+        echo 'Waiting for Kafka...'
+        sleep 2
+      done
       
       # messagesトピックを3パーティションで作成（負荷分散テスト用）
       echo 'Creating messages topic with 3 partitions...'
