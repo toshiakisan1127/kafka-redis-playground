@@ -131,3 +131,11 @@ local.properties
 
 # Spring Boot DevTools
 spring-boot-devtools.properties
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Docker
+*.log
