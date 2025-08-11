@@ -87,7 +87,7 @@ task buildDockerImage(type: Exec) {
     description = 'Build Docker image'
     dependsOn bootJar
     
-    commandLine 'docker', 'build', '-f', 'Dockerfile.corretto', '-t', "kafka-redis-playground:${version}", '.'
+    commandLine 'docker', 'build', '-t', "kafka-redis-playground:${version}", '.'
 }
 
 // 依存関係の可視化
