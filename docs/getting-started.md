@@ -109,6 +109,51 @@ curl http://localhost:8888/api/messages/sender/getting-started | jq
 curl http://localhost:8888/api/messages/urgent | jq
 ```
 
+## Data Management
+
+### Clear All Redis Data
+```bash
+# Option 1: Clear all Redis data (recommended)
+docker exec -it kafka-redis-playground-redis-1 redis-cli FLUSHALL
+
+# Option 2: Clear only current database (db 0)
+docker exec -it kafka-redis-playground-redis-1 redis-cli FLUSHDB
+
+# Option 3: Via Redis Insight UI
+# - Go to http://localhost:8001
+# - Connect to localhost:6379
+# - Use "Flush Database" button
+
+# Verify Redis is empty
+docker exec -it kafka-redis-playground-redis-1 redis-cli KEYS "*"
+# Should return: (empty array)
+```
+
+### Clear Kafka Topics (Optional)
+```bash
+# Delete and recreate the messages topic
+docker exec -it kafka-redis-playground-kafka-1 kafka-topics.sh \
+  --bootstrap-server localhost:9092 \
+  --delete --topic messages
+
+# Topic will be auto-recreated when application starts
+```
+
+### Reset Everything
+```bash
+# Stop application if running
+# Ctrl+C or kill the process
+
+# Stop and remove all containers + volumes
+docker-compose down -v
+
+# Start fresh
+docker-compose up -d
+
+# Restart application
+./gradlew bootRun
+```
+
 ## Verification Steps
 
 ### 1. Check Kafka Integration
@@ -169,6 +214,39 @@ export SPRING_DATA_REDIS_PORT=6379
 3. **Consumer Registration**: Message consumer group is registered with Kafka
 4. **Cache Initialization**: Redis connection pool is established
 5. **API Activation**: REST endpoints become available
+
+## Development Tips
+
+### Testing Different Scenarios
+```bash
+# 1. Clear Redis data
+docker exec -it kafka-redis-playground-redis-1 redis-cli FLUSHALL
+
+# 2. Send test messages
+curl -X POST http://localhost:8888/api/messages \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Test message 1", "sender": "dev", "type": "INFO"}'
+
+# 3. Verify no duplicates
+curl http://localhost:8888/api/messages | jq 'length'
+# Should show: 1 (not 2)
+```
+
+### Common Commands
+```bash
+# Check Redis keys
+docker exec -it kafka-redis-playground-redis-1 redis-cli KEYS "*"
+
+# Count Redis keys
+docker exec -it kafka-redis-playground-redis-1 redis-cli DBSIZE
+
+# Monitor Redis commands in real-time
+docker exec -it kafka-redis-playground-redis-1 redis-cli MONITOR
+
+# Check Kafka consumer groups
+docker exec -it kafka-redis-playground-kafka-1 kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 --list
+```
 
 ## Next Steps
 
