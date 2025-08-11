@@ -43,33 +43,6 @@ services:
     profiles:
       - local-infra
 
-  # Kafka Topic初期化コンテナ（Multi Producer/Consumer用）
-  kafka-init:
-    image: confluentinc/cp-kafka:7.4.0
-    depends_on:
-      - kafka
-    entrypoint: ['/bin/sh', '-c']
-    command: >
-      "
-      # Kafkaが起動するまで待機
-      echo 'Waiting for Kafka to be ready...'
-      while ! kafka-topics --bootstrap-server kafka:29092 --list >/dev/null 2>&1; do
-        echo 'Waiting for Kafka...'
-        sleep 2
-      done
-      
-      # messagesトピックを3パーティションで作成（負荷分散テスト用）
-      echo 'Creating messages topic with 3 partitions...'
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic messages --partitions 3 --replication-factor 1
-      
-      echo 'Topic created successfully!'
-      kafka-topics --bootstrap-server kafka:29092 --describe --topic messages
-      "
-    networks:
-      - kafka-redis-network
-    profiles:
-      - local-infra
-
   # Redis (Local Development Only)
   redis:
     image: redis:7-alpine
@@ -142,8 +115,6 @@ services:
     networks:
       - kafka-redis-network
     restart: unless-stopped
-    depends_on:
-      - kafka-init
 
 volumes:
   redis-data:
