@@ -145,6 +145,38 @@ test_http_request() {
     fi
 }
 
+# 緊急メッセージテスト（リトライ機能付き）
+test_urgent_messages_with_retry() {
+    local max_attempts=6
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        log "INFO" "Testing urgent messages (attempt $attempt/$max_attempts)"
+        
+        local response=$(curl -s -w "HTTPSTATUS:%{http_code}" "$API_URL/urgent")
+        local http_code=$(echo "$response" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+        local body=$(echo "$response" | sed -e 's/HTTPSTATUS:.*//')
+        
+        if [ "$http_code" = "200" ] && echo "$body" | grep -q "CI Error Test"; then
+            record_test "Get urgent messages (with retry)" "PASS"
+            echo "Response: $body" >> "$TEST_LOG"
+            return 0
+        fi
+        
+        log "WARNING" "Urgent message not found yet, waiting... (attempt $attempt/$max_attempts)"
+        echo "Current response: $body" >> "$TEST_LOG"
+        
+        # Kafkaの処理を待機
+        sleep 5
+        attempt=$((attempt + 1))
+    done
+    
+    # 最終的に失敗
+    record_test "Get urgent messages (with retry)" "FAIL" "Urgent message not found after $max_attempts attempts"
+    echo "Final response: $body" >> "$TEST_LOG"
+    return 1
+}
+
 # コアテスト実行
 run_core_tests() {
     log "INFO" "=== Core Integration Tests ==="
@@ -166,15 +198,15 @@ run_core_tests() {
     local error_data='{"content":"CI Error Test","sender":"ci-test","type":"ERROR"}'
     test_http_request "Create ERROR message" "POST" "$API_URL" "$error_data" "201" "CI Error Test"
     
-    # Kafka処理を待機
+    # Kafka処理を待機（CI環境では長めに）
     log "INFO" "Waiting for Kafka processing..."
-    sleep 10
+    sleep 15
     
     # 5. 全メッセージ取得
     test_http_request "Get all messages" "GET" "$API_URL" "" "200" "CI Test Message"
     
-    # 6. 緊急メッセージ取得（ERROR タイプ）
-    test_http_request "Get urgent messages" "GET" "$API_URL/urgent" "" "200" "CI Error Test"
+    # 6. 緊急メッセージ取得（ERROR タイプ）- リトライ機能付き
+    test_urgent_messages_with_retry
     
     # 7. 送信者でフィルタリング
     test_http_request "Get messages by sender" "GET" "$API_URL/sender/ci-test" "" "200" "ci-test"
@@ -208,7 +240,7 @@ run_performance_tests() {
     log "SUCCESS" "Performance test completed in $duration seconds"
     
     # 処理待機
-    sleep 10
+    sleep 15
     
     # 結果確認
     test_http_request "Get performance test messages" "GET" "$API_URL/sender/perf-test" "" "200"
