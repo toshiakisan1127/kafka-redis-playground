@@ -76,6 +76,45 @@ done
 # Follow logs: docker-compose logs -f app
 ```
 
+## 🧪 Testing
+
+### Automated Integration Tests
+```bash
+# Run comprehensive integration tests
+./tests/integration-test.sh
+
+# Run specific test types
+./tests/integration-test.sh test        # API tests only
+./tests/integration-test.sh performance # Performance tests only
+./tests/integration-test.sh setup       # Environment setup only
+./tests/integration-test.sh cleanup     # Environment cleanup only
+```
+
+### Manual Testing
+```bash
+# Interactive testing interface
+./tests/manual-test.sh
+```
+
+### Load Testing
+```bash
+# Basic load test
+./tests/load-test.sh
+
+# Advanced load tests
+./tests/load-test.sh --users 20 --requests 50  # Custom load
+./tests/load-test.sh --spike                   # Spike test
+./tests/load-test.sh --endurance               # Endurance test
+```
+
+**Test Coverage:**
+- ✅ All API endpoints (create, read, delete, filter)
+- ✅ Kafka producer/consumer integration
+- ✅ Redis caching and duplicate prevention
+- ✅ Error handling and validation
+- ✅ Performance and load testing
+- ✅ CI/CD pipeline integration
+
 ## 📚 Documentation
 
 - **[Getting Started Guide](docs/getting-started.md)** - Detailed setup and usage
@@ -85,6 +124,7 @@ done
 - **[Kafka & Redis Guide](docs/kafka-redis-guide.md)** - Deep dive into messaging and caching
 - **[Sequence Diagrams](docs/sequence-diagrams.md)** - Visual flow diagrams
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
+- **[Testing Guide](tests/README.md)** - Comprehensive testing documentation
 
 ## 🏗️ Architecture
 
@@ -102,6 +142,7 @@ This project implements **Onion Architecture** with clean separation of concerns
 - **Observable Processing** - 3-second delays for demonstration
 - **Environment Flexibility** - Local dev + production ready
 - **Complete Docker Stack** - No local Java installation needed
+- **Comprehensive Testing** - Integration, performance, and load tests
 
 ## 🎯 What You'll Learn
 
@@ -111,6 +152,7 @@ This project implements **Onion Architecture** with clean separation of concerns
 - **Modern Java** - Amazon Corretto 21 with enterprise features
 - **Spring Boot 3.5** - Latest framework capabilities
 - **Docker Integration** - Complete containerized development
+- **Testing Strategies** - Integration and performance testing
 
 ## 🚀 Deployment Options
 
@@ -131,6 +173,11 @@ docker-compose up --build -d
 ## 🤝 Contributing
 
 Contributions are welcome! Please read our [Development Guide](docs/development-guide.md) for details on our development process.
+
+Before submitting a PR, please run the integration tests:
+```bash
+./tests/integration-test.sh
+```
 
 ## 📄 License
 
