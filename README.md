@@ -7,13 +7,13 @@ A hands-on learning playground for exploring Apache Kafka and Redis integration 
 - **Apache Kafka** - Distributed event streaming platform
 - **Redis** - In-memory data structure store
 - **Spring Boot 3.5.4** - Latest stable Java application framework
-- **Java 23** - Latest stable JDK with modern language features
+- **Java 23** - Latest stable JDK (using stable features only)
 - **Gradle 8.10.2** - Modern build tool with optimization
 - **Docker Compose** - Container orchestration for local development
 
 ## 📋 Prerequisites
 
-- **Java 23** (latest stable version)
+- **Java 23** (exactly version 23, not 24)
 - **Docker** and **Docker Compose**
 - **Git**
 
@@ -24,9 +24,15 @@ A hands-on learning playground for exploring Apache Kafka and Redis integration 
 curl -s "https://get.sdkman.io" | bash
 sdk install java 23.0.1-oracle
 
-# Or download from Oracle
-# https://www.oracle.com/java/technologies/downloads/
+# Verify installation
+java --version
+# Expected: java 23.0.1 or similar
+
+# If you have Java 24, switch to Java 23
+sdk use java 23.0.1-oracle
 ```
+
+⚠️ **Important**: This project requires **Java 23** specifically. Java 24 is not compatible with Gradle 8.10.2.
 
 ## 🏃‍♂️ Quick Start
 
@@ -37,7 +43,18 @@ git clone https://github.com/toshiakisan1127/kafka-redis-playground.git
 cd kafka-redis-playground
 ```
 
-### 2. Start Infrastructure Services
+### 2. Verify Java Version
+
+```bash
+# Check Java version
+java --version
+# Should show: java 23.x.x
+
+# If wrong version, set Java 23
+export JAVA_HOME=$HOME/.sdkman/candidates/java/23.0.1-oracle
+```
+
+### 3. Start Infrastructure Services
 
 ```bash
 # Start Kafka, Redis, and management UIs
@@ -47,7 +64,7 @@ docker-compose up -d
 docker-compose ps
 ```
 
-### 3. Run Spring Boot Application
+### 4. Run Spring Boot Application
 
 ```bash
 # Option 1: Standard startup
@@ -61,7 +78,7 @@ docker-compose ps
 java -jar build/libs/kafka-redis-playground-1.0.0.jar
 ```
 
-### 4. Verify Application is Running
+### 5. Verify Application is Running
 
 ```bash
 # Health check
@@ -172,20 +189,93 @@ docker-compose stop kafka-ui        # Stop Kafka UI
 ### Development Workflow
 
 ```bash
-# 1. Start infrastructure
+# 1. Ensure Java 23 is active
+java --version  # Should show 23.x.x
+
+# 2. Start infrastructure
 docker-compose up -d
 
-# 2. Run application in development mode
+# 3. Run application in development mode
 ./gradlew runApp
 
-# 3. Make changes and the app will auto-reload
+# 4. Make changes and the app will auto-reload
 # (Spring Boot DevTools enabled)
 
-# 4. Run tests
+# 5. Run tests
 ./gradlew test
 
-# 5. Build for production
+# 6. Build for production
 ./gradlew bootJar
+```
+
+## 🚦 Troubleshooting
+
+### Java Version Issues
+
+**"Incompatible Java version" Error**
+```bash
+# Check current Java version
+java --version
+
+# If using Java 24, switch to Java 23
+sdk use java 23.0.1-oracle
+
+# Verify Gradle can find Java 23
+./gradlew --version
+```
+
+**JAVA_HOME Issues**
+```bash
+# Set JAVA_HOME explicitly
+export JAVA_HOME=$HOME/.sdkman/candidates/java/23.0.1-oracle
+
+# Or for Homebrew users
+export JAVA_HOME=/usr/local/Cellar/openjdk@23/23.0.1/libexec/openjdk.jdk/Contents/Home
+```
+
+### Common Issues
+
+**Port Conflicts**
+```bash
+# Check what's using port 8080
+lsof -i :8080
+# Kill the process if needed
+kill -9 $(lsof -t -i:8080)
+```
+
+**Docker Issues**
+```bash
+# Reset Docker environment
+docker-compose down -v
+docker system prune -f
+docker-compose up -d
+```
+
+**Gradle Issues**
+```bash
+# Clean build cache
+./gradlew clean build --refresh-dependencies
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+```bash
+# Application settings
+export SPRING_PROFILES_ACTIVE=dev
+export SERVER_PORT=8080
+
+# Kafka settings
+export SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+export APP_KAFKA_TOPIC_MESSAGES=messages
+
+# Redis settings
+export SPRING_DATA_REDIS_HOST=localhost
+export SPRING_DATA_REDIS_PORT=6379
+
+# JVM settings for Java 23
+export JAVA_OPTS="-Xms256m -Xmx512m"
 ```
 
 ## 🏗️ Architecture Overview
@@ -215,7 +305,7 @@ This project implements **Onion Architecture** with the following layers:
 - **Domain-Driven Design**: Rich domain models with business logic
 - **Event Sourcing**: Kafka for message streaming
 - **Caching Strategy**: Redis for performance optimization
-- **Modern Java**: Leverages Java 23 preview features
+- **Java 23 Compatibility**: Uses stable features of Java 23
 
 ## 📊 Monitoring and Observability
 
@@ -244,76 +334,12 @@ docker-compose logs -f kafka
 docker-compose logs -f redis
 ```
 
-## 🔧 Configuration
-
-### Environment Variables
-
-```bash
-# Application settings
-export SPRING_PROFILES_ACTIVE=dev
-export SERVER_PORT=8080
-
-# Kafka settings
-export SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-export APP_KAFKA_TOPIC_MESSAGES=messages
-
-# Redis settings
-export SPRING_DATA_REDIS_HOST=localhost
-export SPRING_DATA_REDIS_PORT=6379
-
-# JVM settings
-export JAVA_OPTS="-Xms256m -Xmx512m --enable-preview"
-```
-
-### Application Profiles
-
-- **default**: Production-ready configuration
-- **dev**: Development with debug logging
-- **test**: Testing with in-memory components
-
 ## 📚 Documentation
 
 - [`docs/spring-boot-architecture.md`](docs/spring-boot-architecture.md) - Detailed architecture guide
 - [`docs/sequence-diagrams.md`](docs/sequence-diagrams.md) - Interactive sequence diagrams
 - [`docs/architecture.md`](docs/architecture.md) - Docker Compose infrastructure
 - [`docs/kafka-concepts.md`](docs/kafka-concepts.md) - Kafka fundamentals and best practices
-
-## 🚦 Troubleshooting
-
-### Common Issues
-
-**Port Conflicts**
-```bash
-# Check what's using port 8080
-lsof -i :8080
-# Kill the process if needed
-kill -9 $(lsof -t -i:8080)
-```
-
-**Docker Issues**
-```bash
-# Reset Docker environment
-docker-compose down -v
-docker system prune -f
-docker-compose up -d
-```
-
-**Gradle Issues**
-```bash
-# Clean build cache
-./gradlew clean build --refresh-dependencies
-```
-
-**Java Version Issues**
-```bash
-# Verify Java version
-java --version
-# Should show: java 23.x.x
-
-# If using SDKMAN
-sdk current java
-sdk use java 23.0.1-oracle
-```
 
 ## 🎯 Next Steps
 
@@ -343,4 +369,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Happy Coding with Modern Java and Event-Driven Architecture!** 🎉
+**Happy Coding with Java 23 and Event-Driven Architecture!** 🎉
