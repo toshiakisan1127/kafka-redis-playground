@@ -33,7 +33,7 @@ public class MessageService {
     public Message createAndSendMessage(String content, String sender, MessageType type) {
         Message message = Message.create(content, sender, type);
         
-        // Kafkaに送信（Consumer経由でRedisに保存される）
+        // Kafkaに送信のみ（Consumer経由でRedisに保存される）
         messagePublisher.publish(message);
         
         return message;
