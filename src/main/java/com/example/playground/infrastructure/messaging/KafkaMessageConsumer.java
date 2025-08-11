@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -27,6 +28,9 @@ public class KafkaMessageConsumer {
     private final MessageRepository messageRepository;
     private final ObjectMapper objectMapper;
     
+    @Value("${app.kafka.consumer.processing-delay:3000}")
+    private int processingDelayMs;
+    
     public KafkaMessageConsumer(MessageRepository messageRepository, ObjectMapper objectMapper) {
         this.messageRepository = messageRepository;
         this.objectMapper = objectMapper;
@@ -45,8 +49,14 @@ public class KafkaMessageConsumer {
             @Header(KafkaHeaders.OFFSET) long offset) {
         
         try {
-            logger.info("Received message: key={}, topic={}, partition={}, offset={}", 
+            logger.info("🚀 Received message: key={}, topic={}, partition={}, offset={}", 
                     key, topic, partition, offset);
+            
+            // 🐌 処理遅延（Kafka UIで観察するため）
+            if (processingDelayMs > 0) {
+                logger.info("⏳ Processing delay: {}ms for better observation...", processingDelayMs);
+                Thread.sleep(processingDelayMs);
+            }
             
             // JSONからメッセージイベントに変換
             MessageEvent event = objectMapper.readValue(messageJson, MessageEvent.class);
@@ -54,16 +64,22 @@ public class KafkaMessageConsumer {
             // ドメインモデルに変換
             Message message = convertToMessage(event);
             
+            logger.info("💾 Saving message to Redis: id={}, content='{}'", 
+                    message.getId(), message.getContent());
+            
             // リポジトリに保存（別のインスタンスからのメッセージかもしれないので）
             messageRepository.save(message);
             
-            logger.info("Message processed and saved: id={}, sender={}, type={}", 
+            logger.info("✅ Message processed and saved: id={}, sender={}, type={}", 
                     message.getId(), message.getSender(), message.getType());
                     
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("⚠️ Message processing interrupted: key={}", key);
         } catch (JsonProcessingException e) {
-            logger.error("Failed to deserialize message: key={}, payload={}", key, messageJson, e);
+            logger.error("❌ Failed to deserialize message: key={}, payload={}", key, messageJson, e);
         } catch (Exception e) {
-            logger.error("Failed to process message: key={}", key, e);
+            logger.error("💥 Failed to process message: key={}", key, e);
             // ここで必要に応じてDLQ（Dead Letter Queue）に送信するロジックを追加
         }
     }
