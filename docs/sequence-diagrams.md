@@ -238,16 +238,16 @@ docker-compose restart app
 docker-compose logs -f app
 
 # テスト実行（コンテナ内）
-docker-compose exec app gradle test
+docker-compose exec app ./gradlew test
 
 # JARビルド
-docker-compose exec app gradle bootJar
+docker-compose exec app ./gradlew bootJar
 
 # 依存関係確認
-docker-compose exec app gradle dependencies
+docker-compose exec app ./gradlew dependencies
 
 # 特定の依存関係詳細
-docker-compose exec app gradle dependencyInsight --dependency spring-kafka
+docker-compose exec app ./gradlew dependencyInsight --dependency spring-kafka
 ```
 
 ### API テスト例
@@ -267,10 +267,10 @@ curl http://localhost:8888/api/messages
 ```bash
 # GitHub Actions等のCI環境で
 docker build -t kafka-redis-playground .
-docker run --rm kafka-redis-playground gradle test jacocoTestReport
+docker run --rm kafka-redis-playground ./gradlew test jacocoTestReport
 
 # またはdocker-composeでテスト
-docker-compose run --rm app gradle test jacocoTestReport
+docker-compose run --rm app ./gradlew test jacocoTestReport
 ```
 
 ## 注記
