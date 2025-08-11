@@ -1,4 +1,4 @@
-# Fallback: Use Amazon Corretto JDK 21 if JDK 23 images aren't available
+# Use Amazon Corretto JDK 21 for build
 FROM amazoncorretto:21 AS build
 
 # Install Gradle manually
@@ -20,11 +20,11 @@ COPY gradle ./gradle
 # Copy source code
 COPY src ./src
 
-# Build the application (will use Java 21 if 23 not available)
+# Build the application
 RUN gradle bootJar --no-daemon
 
-# Use Amazon Corretto JDK 21 for runtime
-FROM amazoncorretto:21-headless
+# Use Amazon Corretto JDK 21 for runtime (same as build)
+FROM amazoncorretto:21
 
 # Set working directory
 WORKDIR /app
