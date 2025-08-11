@@ -7,32 +7,15 @@ A hands-on learning playground for exploring Apache Kafka and Redis integration 
 - **Apache Kafka** - Distributed event streaming platform
 - **Redis** - In-memory data structure store
 - **Spring Boot 3.5.4** - Latest stable Java application framework
-- **Java 23** - Latest stable JDK (using stable features only)
+- **Java 23** - Latest stable JDK
 - **Gradle 8.10.2** - Modern build tool with optimization
 - **Docker Compose** - Container orchestration for local development
 
 ## 📋 Prerequisites
 
-- **Java 23** (exactly version 23, not 24)
+- **Java 23** (configured in your IDE)
 - **Docker** and **Docker Compose**
 - **Git**
-
-### Java 23 Installation
-
-```bash
-# Install with SDKMAN (recommended)
-curl -s "https://get.sdkman.io" | bash
-sdk install java 23.0.1-oracle
-
-# Verify installation
-java --version
-# Expected: java 23.0.1 or similar
-
-# If you have Java 24, switch to Java 23
-sdk use java 23.0.1-oracle
-```
-
-⚠️ **Important**: This project requires **Java 23** specifically. Java 24 is not compatible with Gradle 8.10.2.
 
 ## 🏃‍♂️ Quick Start
 
@@ -43,18 +26,7 @@ git clone https://github.com/toshiakisan1127/kafka-redis-playground.git
 cd kafka-redis-playground
 ```
 
-### 2. Verify Java Version
-
-```bash
-# Check Java version
-java --version
-# Should show: java 23.x.x
-
-# If wrong version, set Java 23
-export JAVA_HOME=$HOME/.sdkman/candidates/java/23.0.1-oracle
-```
-
-### 3. Start Infrastructure Services
+### 2. Start Infrastructure Services
 
 ```bash
 # Start Kafka, Redis, and management UIs
@@ -64,7 +36,7 @@ docker-compose up -d
 docker-compose ps
 ```
 
-### 4. Run Spring Boot Application
+### 3. Run Spring Boot Application
 
 ```bash
 # Option 1: Standard startup
@@ -78,7 +50,7 @@ docker-compose ps
 java -jar build/libs/kafka-redis-playground-1.0.0.jar
 ```
 
-### 5. Verify Application is Running
+### 4. Verify Application is Running
 
 ```bash
 # Health check
@@ -189,49 +161,23 @@ docker-compose stop kafka-ui        # Stop Kafka UI
 ### Development Workflow
 
 ```bash
-# 1. Ensure Java 23 is active
-java --version  # Should show 23.x.x
-
-# 2. Start infrastructure
+# 1. Start infrastructure
 docker-compose up -d
 
-# 3. Run application in development mode
+# 2. Run application in development mode
 ./gradlew runApp
 
-# 4. Make changes and the app will auto-reload
+# 3. Make changes and the app will auto-reload
 # (Spring Boot DevTools enabled)
 
-# 5. Run tests
+# 4. Run tests
 ./gradlew test
 
-# 6. Build for production
+# 5. Build for production
 ./gradlew bootJar
 ```
 
 ## 🚦 Troubleshooting
-
-### Java Version Issues
-
-**"Incompatible Java version" Error**
-```bash
-# Check current Java version
-java --version
-
-# If using Java 24, switch to Java 23
-sdk use java 23.0.1-oracle
-
-# Verify Gradle can find Java 23
-./gradlew --version
-```
-
-**JAVA_HOME Issues**
-```bash
-# Set JAVA_HOME explicitly
-export JAVA_HOME=$HOME/.sdkman/candidates/java/23.0.1-oracle
-
-# Or for Homebrew users
-export JAVA_HOME=/usr/local/Cellar/openjdk@23/23.0.1/libexec/openjdk.jdk/Contents/Home
-```
 
 ### Common Issues
 
@@ -257,6 +203,11 @@ docker-compose up -d
 ./gradlew clean build --refresh-dependencies
 ```
 
+**Java Compatibility**
+- Ensure your IDE is configured to use **Java 23**
+- Project uses Gradle 8.10.2 which is compatible with Java 23
+- Check Project Settings → SDK → Java 23
+
 ## 🔧 Configuration
 
 ### Environment Variables
@@ -273,9 +224,6 @@ export APP_KAFKA_TOPIC_MESSAGES=messages
 # Redis settings
 export SPRING_DATA_REDIS_HOST=localhost
 export SPRING_DATA_REDIS_PORT=6379
-
-# JVM settings for Java 23
-export JAVA_OPTS="-Xms256m -Xmx512m"
 ```
 
 ## 🏗️ Architecture Overview
