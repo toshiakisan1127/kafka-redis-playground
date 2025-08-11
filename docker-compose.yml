@@ -76,6 +76,36 @@ services:
     networks:
       - kafka-redis-network
 
+  # Spring Boot Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kafka-redis-app
+    depends_on:
+      - kafka
+      - redis
+    ports:
+      - "8888:8888"
+    environment:
+      # Kafka settings (internal network)
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APP_KAFKA_TOPIC_MESSAGES: messages
+      APP_KAFKA_CONSUMER_GROUP_ID: message-consumer-group
+      
+      # Redis settings (internal network) 
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      
+      # Processing delay for demo
+      APP_KAFKA_CONSUMER_PROCESSING_DELAY: 3000
+      
+      # Logging
+      LOGGING_LEVEL_COM_EXAMPLE_PLAYGROUND: DEBUG
+    networks:
+      - kafka-redis-network
+    restart: unless-stopped
+
 volumes:
   redis-data:
     driver: local
