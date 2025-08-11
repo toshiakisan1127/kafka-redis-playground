@@ -2,11 +2,17 @@
 
 A hands-on learning playground for exploring Apache Kafka and Redis integration with Spring Boot, featuring a modern **Onion Architecture** implementation.
 
+## ✨ NEW: Multi Producer/Consumer Demo
+
+🚀 **Now featuring 3 Producers + 3 Consumers + Consumer Group load balancing!**
+
+Experience real-time message distribution across multiple consumers for hands-on Kafka learning.
+
 ## 🚀 Tech Stack
 
 - **Spring Boot 3.5.4** - Latest stable Java application framework
 - **Amazon Corretto 21** - Enterprise-grade Java runtime
-- **Apache Kafka** - Distributed event streaming platform
+- **Apache Kafka** - Distributed event streaming platform with **3-partition topic**
 - **Redis** - In-memory data structure store
 - **Gradle 8.10.2** - Modern build tool
 - **Docker Compose** - Complete containerization
@@ -41,7 +47,49 @@ curl http://localhost:8888/actuator/health
 | **Kafka UI** | http://localhost:8080 | Kafka management interface |
 | **Redis Insight** | http://localhost:8001 | Redis management interface |
 
-## 🧪 Try the API
+## 🎯 Multi Producer/Consumer Demo
+
+### 🚀 Batch Message Demo
+Send messages from 3 producers simultaneously and watch consumer group load balancing:
+
+```bash
+# Send 15 messages from 3 producers (5 each)
+curl -X POST "http://localhost:8888/api/multi-demo/send-batch?count=15"
+
+# Check processing status
+curl http://localhost:8888/api/multi-demo/consumer-status
+```
+
+### 🔥 Stress Test Demo
+Test consumer group performance under load:
+
+```bash
+# 30-second stress test at 10 messages/sec
+curl -X POST "http://localhost:8888/api/multi-demo/stress-test?duration=30&ratePerSecond=10"
+
+# Monitor processing in real-time
+curl http://localhost:8888/api/multi-demo/consumer-status
+```
+
+### 📊 Observe Load Balancing
+1. **Kafka UI**: Watch partition assignment at http://localhost:8080
+2. **Application Logs**: See which consumer processes each message:
+   ```bash
+   docker-compose logs -f app | grep "Consumer-[ABC]"
+   ```
+3. **Consumer Status**: Track processing statistics per producer/consumer
+
+## 🧪 Consumer Group Features
+
+- **3 Consumers** with different processing speeds:
+  - 🟦 **Consumer-A**: 1000ms delay (standard)
+  - 🟩 **Consumer-B**: 1500ms delay (slower) 
+  - 🟨 **Consumer-C**: 800ms delay (faster)
+- **Consumer Group Load Balancing**: Messages automatically distributed
+- **3 Kafka Partitions**: Parallel processing across consumers
+- **Real-time Monitoring**: Colored logs for easy identification
+
+## 🧪 Try the Original API
 
 ```bash
 # Create a message
@@ -62,7 +110,7 @@ curl http://localhost:8888/api/messages/urgent
 
 ## 🎬 Observable Processing
 
-Watch Kafka message processing in real-time with **3-second delays**:
+Watch Kafka message processing in real-time:
 
 ```bash
 # Send multiple messages
@@ -110,6 +158,8 @@ done
 **Test Coverage:**
 - ✅ All API endpoints (create, read, delete, filter)
 - ✅ Kafka producer/consumer integration
+- ✅ **Multi Producer/Consumer load balancing**
+- ✅ **Consumer Group partition assignment**
 - ✅ Redis caching and duplicate prevention
 - ✅ Error handling and validation
 - ✅ Performance and load testing
@@ -134,12 +184,19 @@ This project implements **Onion Architecture** with clean separation of concerns
 📦 Domain Layer (Core Business Logic)
 ├── 🔄 Application Layer (Use Cases)
 ├── 🔌 Infrastructure Layer (External Concerns)
+│   ├── 🟦 Consumer-A (Standard Processing)
+│   ├── 🟩 Consumer-B (Slower Processing)
+│   └── 🟨 Consumer-C (Faster Processing)
 └── 🌐 Presentation Layer (API Endpoints)
+    ├── /api/messages (Original API)
+    └── /api/multi-demo (Multi Producer/Consumer Demo)
 ```
 
 **Key Features:**
+- **Consumer Group Load Balancing** - Automatic message distribution
+- **3-Partition Kafka Topic** - Parallel processing capabilities
 - **No Duplicate Messages** - Redis Sets prevent ID duplicates
-- **Observable Processing** - 3-second delays for demonstration
+- **Observable Processing** - Colored logs and processing delays
 - **Environment Flexibility** - Local dev + production ready
 - **Complete Docker Stack** - No local Java installation needed
 - **Comprehensive Testing** - Integration, performance, and load tests
@@ -148,6 +205,8 @@ This project implements **Onion Architecture** with clean separation of concerns
 
 - **Onion Architecture** - Clean, testable, maintainable code structure
 - **Event-Driven Architecture** - Kafka producer/consumer patterns
+- **Consumer Groups** - Load balancing and partition assignment
+- **Kafka Partitioning** - Parallel processing strategies
 - **Caching Strategies** - Redis Sets for duplicate prevention
 - **Modern Java** - Amazon Corretto 21 with enterprise features
 - **Spring Boot 3.5** - Latest framework capabilities
@@ -185,4 +244,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Ready to explore modern event-driven architecture with Amazon Corretto?** ☕🚀
+**Ready to explore modern event-driven architecture with multi-producer/consumer patterns?** ☕🚀
