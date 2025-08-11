@@ -1,14 +1,14 @@
-# Use OpenJDK 23 base image
-FROM openjdk:23-jdk AS build
+# Use Amazon Corretto JDK 21 for build
+FROM amazoncorretto:21 AS build
 
 # Install Gradle manually
-RUN apt-get update && apt-get install -y wget unzip && \
+RUN yum update -y && yum install -y wget unzip && \
     wget https://services.gradle.org/distributions/gradle-8.10.2-bin.zip && \
     unzip gradle-8.10.2-bin.zip && \
     mv gradle-8.10.2 /opt/gradle && \
     ln -s /opt/gradle/bin/gradle /usr/local/bin/gradle && \
     rm gradle-8.10.2-bin.zip && \
-    apt-get clean
+    yum clean all
 
 # Set working directory
 WORKDIR /app
@@ -23,8 +23,8 @@ COPY src ./src
 # Build the application
 RUN gradle bootJar --no-daemon
 
-# Use OpenJDK 23 for runtime
-FROM openjdk:23-jdk-slim
+# Use Amazon Corretto JDK 21 for runtime
+FROM amazoncorretto:21
 
 # Set working directory
 WORKDIR /app
