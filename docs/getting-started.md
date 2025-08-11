@@ -16,18 +16,35 @@ git clone https://github.com/toshiakisan1127/kafka-redis-playground.git
 cd kafka-redis-playground
 ```
 
-### 2. Start Everything with Docker Compose
+### 2. Configure Environment (Optional)
 ```bash
-# Start all services including Spring Boot app
-docker-compose up -d
+# Copy environment template
+cp .env.template .env
 
-# Or build and start (if code changed)
+# Edit as needed (defaults work for local development)
+vim .env
+```
+
+**Default .env settings (Local Development):**
+```bash
+KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+REDIS_HOST=redis
+PROCESSING_DELAY=3000
+# ... other settings
+```
+
+### 3. Start Everything with Docker Compose
+```bash
+# Option 1: Full local stack (Kafka + Redis + App)
+docker-compose --profile local-infra up --build -d
+
+# Option 2: App only (if using external Kafka/Redis)
 docker-compose up --build -d
 
 # Verify all services are running
 docker-compose ps
 
-# Expected output:
+# Expected output for full stack:
 # zookeeper               Running
 # kafka                   Running  
 # redis                   Running
@@ -36,7 +53,7 @@ docker-compose ps
 # kafka-redis-app         Running
 ```
 
-### 3. Verify Application
+### 4. Verify Application
 ```bash
 # Health check
 curl http://localhost:8888/actuator/health
@@ -113,6 +130,73 @@ docker-compose logs -f app
 # ✅ Message processed and saved: id=uuid-1234, sender=demo, type=INFO
 ```
 
+## Environment Configuration
+
+### Local Development (Default)
+The default configuration uses local Docker containers for all services:
+
+```bash
+# .env file (automatically loaded)
+KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+REDIS_HOST=redis
+KAFKA_CONSUMER_GROUP_ID=message-consumer-group
+PROCESSING_DELAY=3000
+```
+
+### Using External Services (Staging/Production)
+For staging or production environments with managed Kafka/Redis:
+
+#### Option 1: Environment File
+```bash
+# Create environment-specific file
+cp .env.template .env.staging
+
+# Edit for your environment
+vim .env.staging
+```
+
+**Example .env.staging:**
+```bash
+KAFKA_BOOTSTRAP_SERVERS=kafka-staging.company.com:9092
+REDIS_HOST=redis-staging.company.com
+REDIS_PORT=6379
+KAFKA_CONSUMER_GROUP_ID=message-consumer-group-staging
+PROCESSING_DELAY=0
+SPRING_PROFILES_ACTIVE=staging
+```
+
+**Run with staging config:**
+```bash
+docker-compose --env-file .env.staging up --build -d
+```
+
+#### Option 2: Environment Variables
+```bash
+# Run with production settings
+KAFKA_BOOTSTRAP_SERVERS=kafka-prod.company.com:9092 \
+REDIS_HOST=redis-prod.company.com \
+KAFKA_CONSUMER_GROUP_ID=message-consumer-group-prod \
+PROCESSING_DELAY=0 \
+docker-compose up --build -d
+```
+
+#### Option 3: App-Only Mode
+```bash
+# Run only the Spring Boot app (no local Kafka/Redis)
+docker-compose up app --build
+```
+
+### Configuration Variables
+
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `KAFKA_BOOTSTRAP_SERVERS` | Kafka cluster address | `kafka:29092` | `kafka-prod.com:9092` |
+| `REDIS_HOST` | Redis server host | `redis` | `redis-cluster.aws.com` |
+| `REDIS_PORT` | Redis server port | `6379` | `6379` |
+| `KAFKA_CONSUMER_GROUP_ID` | Consumer group identifier | `message-consumer-group` | `prod-consumers` |
+| `PROCESSING_DELAY` | Demo delay in milliseconds | `3000` | `0` (production) |
+| `SPRING_PROFILES_ACTIVE` | Spring profile | `docker` | `prod`, `staging` |
+
 ## Data Management
 
 ### Clear All Redis Data
@@ -149,7 +233,7 @@ docker exec -it kafka kafka-topics.sh \
 docker-compose down -v
 
 # Start fresh
-docker-compose up --build -d
+docker-compose --profile local-infra up --build -d
 ```
 
 ## Verification Steps
@@ -182,32 +266,6 @@ docker-compose logs -f app
 # - "✅ Message processed and saved"
 ```
 
-## Configuration
-
-### Environment Variables (in docker-compose.yml)
-```yaml
-environment:
-  # Kafka settings (internal network)
-  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-  
-  # Redis settings (internal network) 
-  SPRING_DATA_REDIS_HOST: redis
-  
-  # Processing delay for demo (3 seconds)
-  APP_KAFKA_CONSUMER_PROCESSING_DELAY: 3000
-```
-
-### Customize Processing Delay
-```bash
-# Edit docker-compose.yml
-APP_KAFKA_CONSUMER_PROCESSING_DELAY: 5000  # 5 seconds
-# or
-APP_KAFKA_CONSUMER_PROCESSING_DELAY: 0     # No delay
-
-# Restart app
-docker-compose restart app
-```
-
 ## Development Tips
 
 ### Testing Different Scenarios
@@ -225,6 +283,21 @@ done
 # 3. Verify no duplicates (thanks to Redis Sets!)
 curl http://localhost:8888/api/messages | jq 'length'
 # Should show: 3 (not 6)
+```
+
+### Customizing Settings
+```bash
+# Disable processing delay
+echo "PROCESSING_DELAY=0" >> .env
+docker-compose restart app
+
+# Change consumer group
+echo "KAFKA_CONSUMER_GROUP_ID=my-custom-group" >> .env
+docker-compose restart app
+
+# Enable production profile
+echo "SPRING_PROFILES_ACTIVE=prod" >> .env
+docker-compose restart app
 ```
 
 ### Common Commands
@@ -256,6 +329,31 @@ docker-compose build app
 docker-compose restart app
 ```
 
+## Deployment Patterns
+
+### Local Development
+```bash
+# Full stack with local infrastructure
+docker-compose --profile local-infra up --build -d
+```
+
+### Staging Environment
+```bash
+# Using managed Kafka/Redis services
+docker-compose --env-file .env.staging up --build -d
+```
+
+### Production Environment
+```bash
+# With production configuration
+KAFKA_BOOTSTRAP_SERVERS=kafka-prod.company.com:9092 \
+REDIS_HOST=redis-prod.company.com \
+KAFKA_CONSUMER_GROUP_ID=message-consumer-group-prod \
+PROCESSING_DELAY=0 \
+SPRING_PROFILES_ACTIVE=prod \
+docker-compose up --build -d
+```
+
 ## Architecture Features
 
 ### ✅ **Onion Architecture**
@@ -269,9 +367,14 @@ docker-compose restart app
 - Redis Sets prevent ID duplicates
 
 ### ✅ **Observable Processing**
-- 3-second delay makes Kafka processing visible
+- Configurable delay makes Kafka processing visible
 - Rich logging with emojis
 - Real-time monitoring via Kafka UI
+
+### ✅ **Environment Flexibility**
+- Local development with Docker containers
+- Staging/Production with managed services
+- Configuration via environment variables
 
 ### ✅ **Complete Docker Stack**
 - No local Java/Gradle installation needed
