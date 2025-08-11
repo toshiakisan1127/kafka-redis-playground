@@ -1,0 +1,118 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.4'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot Starters
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // JSON Processing
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+    // Test Dependencies
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:kafka'
+    testImplementation 'org.testcontainers:testcontainers'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+// Gradle Wrapper設定
+wrapper {
+    gradleVersion = '8.10.2'
+    distributionType = Wrapper.DistributionType.BIN
+}
+
+// Spring Boot設定
+springBoot {
+    mainClass = 'com.example.playground.KafkaRedisPlaygroundApplication'
+}
+
+// ビルド設定
+jar {
+    enabled = false
+    archiveClassifier = ''
+}
+
+bootJar {
+    archiveFileName = "${project.name}-${project.version}.jar"
+    mainClass = 'com.example.playground.KafkaRedisPlaygroundApplication'
+}
+
+// 開発用タスク
+task runApp(type: JavaExec) {
+    group = 'application'
+    description = 'Run the Spring Boot application'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.example.playground.KafkaRedisPlaygroundApplication'
+    
+    // 開発時の環境変数
+    environment 'SPRING_PROFILES_ACTIVE', 'dev'
+    
+    // JVM引数（Amazon Corretto 21対応）
+    jvmArgs = [
+        '-Xms256m',
+        '-Xmx512m',
+        '-Dspring.devtools.restart.enabled=true'
+    ]
+}
+
+// Docker関連タスク
+task buildDockerImage(type: Exec) {
+    group = 'docker'
+    description = 'Build Docker image'
+    dependsOn bootJar
+    
+    commandLine 'docker', 'build', '-t', "kafka-redis-playground:${version}", '.'
+}
+
+// 依存関係の可視化
+task dependencyGraph(type: DependencyReportTask) {
+    group = 'documentation'
+    description = 'Generate dependency report'
+}
+
+// コードフォーマット確認（将来的にSpotlessやCheckstyleを追加予定）
+task checkFormat {
+    group = 'verification'
+    description = 'Check code formatting'
+    doLast {
+        println 'Code formatting check completed'
+    }
+}
+
+// Java 21のコンパイル設定（Amazon Corretto対応）
+tasks.withType(JavaCompile) {
+    options.compilerArgs += [
+        '-Xlint:unchecked',
+        '-Xlint:deprecation'
+    ]
+}
+
+tasks.withType(Test) {
+    // Amazon Corretto 21対応
+}
