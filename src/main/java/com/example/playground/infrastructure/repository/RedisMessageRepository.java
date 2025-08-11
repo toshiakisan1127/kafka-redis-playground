@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -82,11 +83,8 @@ public class RedisMessageRepository implements MessageRepository {
             return new ArrayList<>();
         }
         
-        return messageIds.stream()
-                .map(this::findById)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .toList();
+        // N+1問題を解決：一括取得を使用
+        return getMessagesByIds(messageIds);
     }
     
     @Override
@@ -97,11 +95,58 @@ public class RedisMessageRepository implements MessageRepository {
             return new ArrayList<>();
         }
         
-        return messageIds.stream()
-                .map(this::findById)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+        // N+1問題を解決：一括取得を使用
+        return getMessagesByIds(messageIds);
+    }
+    
+    /**
+     * 複数のメッセージIDから一括でメッセージを取得する
+     * N+1問題を解決するためのヘルパーメソッド
+     * 
+     * @param messageIds 取得するメッセージIDのセット
+     * @return メッセージのリスト
+     */
+    private List<Message> getMessagesByIds(Set<String> messageIds) {
+        if (messageIds == null || messageIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // メッセージキーのリストを作成
+        List<String> keys = messageIds.stream()
+                .map(id -> MESSAGE_KEY_PREFIX + id)
                 .toList();
+        
+        // 一括取得でN+1問題を解決
+        List<String> messageJsons = redisTemplate.opsForValue().multiGet(keys);
+        
+        if (messageJsons == null) {
+            return new ArrayList<>();
+        }
+        
+        return messageJsons.stream()
+                .filter(Objects::nonNull)
+                .map(this::deserializeMessage)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+    
+    /**
+     * JSON文字列からMessageオブジェクトをデシリアライズする
+     * エラーハンドリングを含む
+     * 
+     * @param messageJson JSONstring
+     * @return Messageオブジェクト、デシリアライズに失敗した場合はnull
+     */
+    private Message deserializeMessage(String messageJson) {
+        try {
+            MessageDto dto = objectMapper.readValue(messageJson, MessageDto.class);
+            return dto.toMessage();
+        } catch (JsonProcessingException e) {
+            // ログを出力して該当メッセージをスキップ
+            // 本来はloggerを使用することを推奨
+            System.err.println("Failed to deserialize message: " + e.getMessage());
+            return null;
+        }
     }
     
     @Override
