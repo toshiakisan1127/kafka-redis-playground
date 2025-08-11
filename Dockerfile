@@ -1,5 +1,14 @@
-# Use Gradle image with JDK 21 (more stable than JDK 23)
-FROM gradle:8.10.2-jdk21 AS build
+# Use Eclipse Temurin JDK 23 for Gradle build
+FROM eclipse-temurin:23-jdk AS build
+
+# Install Gradle manually
+RUN apt-get update && apt-get install -y wget unzip && \
+    wget https://services.gradle.org/distributions/gradle-8.10.2-bin.zip && \
+    unzip gradle-8.10.2-bin.zip && \
+    mv gradle-8.10.2 /opt/gradle && \
+    ln -s /opt/gradle/bin/gradle /usr/local/bin/gradle && \
+    rm gradle-8.10.2-bin.zip && \
+    apt-get clean
 
 # Set working directory
 WORKDIR /app
@@ -14,8 +23,8 @@ COPY src ./src
 # Build the application
 RUN gradle bootJar --no-daemon
 
-# Use JDK 21 for runtime (more stable than JDK 23)
-FROM openjdk:21-jdk-slim
+# Use JDK 23 for runtime
+FROM eclipse-temurin:23-jdk-slim
 
 # Set working directory
 WORKDIR /app
