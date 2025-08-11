@@ -9,7 +9,7 @@ version = '1.0.0'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(23)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -73,13 +73,11 @@ task runApp(type: JavaExec) {
     // 開発時の環境変数
     environment 'SPRING_PROFILES_ACTIVE', 'dev'
     
-    // JVM引数（Java 23対応）
+    // JVM引数（Amazon Corretto 21対応）
     jvmArgs = [
         '-Xms256m',
         '-Xmx512m',
         '-Dspring.devtools.restart.enabled=true'
-        // Java 23のプレビュー機能は必要に応じて有効化
-        // '--enable-preview'
     ]
 }
 
@@ -89,7 +87,7 @@ task buildDockerImage(type: Exec) {
     description = 'Build Docker image'
     dependsOn bootJar
     
-    commandLine 'docker', 'build', '-t', "kafka-redis-playground:${version}", '.'
+    commandLine 'docker', 'build', '-f', 'Dockerfile.corretto', '-t', "kafka-redis-playground:${version}", '.'
 }
 
 // 依存関係の可視化
@@ -107,17 +105,14 @@ task checkFormat {
     }
 }
 
-// Java 23のコンパイル設定（プレビュー機能は必要に応じて有効化）
+// Java 21のコンパイル設定（Amazon Corretto対応）
 tasks.withType(JavaCompile) {
     options.compilerArgs += [
         '-Xlint:unchecked',
         '-Xlint:deprecation'
     ]
-    // プレビュー機能を使用する場合は以下をコメントアウト
-    // options.compilerArgs += ['--enable-preview']
 }
 
 tasks.withType(Test) {
-    // プレビュー機能を使用する場合は以下をコメントアウト
-    // jvmArgs += '--enable-preview'
+    // Amazon Corretto 21対応
 }
