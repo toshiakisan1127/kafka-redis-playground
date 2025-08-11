@@ -86,11 +86,11 @@ services:
     profiles:
       - local-infra
 
-  # Spring Boot Application
+  # Spring Boot Application with Amazon Corretto
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.corretto
     container_name: kafka-redis-app
     ports:
       - "${SERVER_PORT:-8888}:8888"
