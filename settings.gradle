@@ -1,0 +1,20 @@
+rootProject.name = 'kafka-redis-playground'
+
+// プラグイン管理
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+// 依存関係解決の設定
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositories {
+        mavenCentral()
+    }
+}
+
+// Feature previewsの有効化
+enableFeaturePreview('TYPESAFE_PROJECT_ACCESSORS')
