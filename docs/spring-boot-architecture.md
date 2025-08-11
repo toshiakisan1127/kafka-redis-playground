@@ -80,7 +80,36 @@ docker-compose up -d
 
 2. **アプリケーション起動**:
 ```bash
-./mvnw spring-boot:run
+# Gradleを使用
+./gradlew bootRun
+
+# または開発用タスクを使用
+./gradlew runApp
+```
+
+## Gradleタスク
+
+```bash
+# アプリケーション実行
+./gradlew bootRun
+
+# テスト実行
+./gradlew test
+
+# JARビルド
+./gradlew bootJar
+
+# 開発用実行（JVM設定済み）
+./gradlew runApp
+
+# Dockerイメージビルド
+./gradlew buildDockerImage
+
+# 依存関係確認
+./gradlew dependencies
+
+# タスク一覧
+./gradlew tasks
 ```
 
 ## 設定
@@ -96,7 +125,26 @@ docker-compose up -d
 ## テスト
 
 ```bash
-./mvnw test
+./gradlew test
+```
+
+## ビルド成果物
+
+- **実行可能JAR**: `build/libs/kafka-redis-playground-1.0.0.jar`
+- **テストレポート**: `build/reports/tests/test/index.html`
+- **依存関係レポート**: `./gradlew dependencyInsight --dependency <dependency-name>`
+
+## 開発用設定
+
+### IDE設定
+- Java 21
+- Gradle 8.8
+- Spring Boot 3.3.2
+
+### 環境変数
+```bash
+export SPRING_PROFILES_ACTIVE=dev
+export JAVA_OPTS="-Xms256m -Xmx512m"
 ```
 
 ## オニオンアーキテクチャの特徴
@@ -105,3 +153,22 @@ docker-compose up -d
 2. **ドメイン層の独立性**: ビジネスロジックが外部技術に依存しない
 3. **インターフェースによる抽象化**: リポジトリやサービスはインターフェースで定義
 4. **テスタビリティ**: 各層が独立してテスト可能
+
+## プロジェクト構成
+
+```
+├── build.gradle                              # Gradle設定
+├── gradle.properties                         # Gradle最適化設定
+├── settings.gradle                           # プロジェクト設定
+├── gradle/wrapper/                           # Gradle Wrapper
+│   └── gradle-wrapper.properties
+├── src/main/java/com/example/playground/
+│   ├── KafkaRedisPlaygroundApplication.java  # メインクラス
+│   ├── domain/                               # ドメイン層
+│   ├── application/                          # アプリケーション層
+│   ├── infrastructure/                       # インフラ層
+│   └── presentation/                         # プレゼンテーション層
+├── src/main/resources/
+│   └── application.properties                # 設定ファイル
+└── src/test/java/                           # テストクラス
+```
