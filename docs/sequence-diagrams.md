@@ -28,26 +28,18 @@ sequenceDiagram
     Kafka-->>-Publisher: SendResult
     Publisher-->>-Service: void
     
-    Service->>+Repository: save(message)
-    Repository->>Repository: MessageDto変換
-    Repository->>+Redis: set(key, json)
-    Redis-->>-Repository: OK
-    Repository->>+Redis: rightPush(lists, messageId)
-    Redis-->>-Repository: OK
-    Repository-->>-Service: Message
-    
-    Service-->>-Controller: Message
-    Controller->>Controller: MessageResponse.from()
-    Controller-->>-Client: 201 Created + MessageResponse
-    
     Note over Kafka,Consumer: 非同期処理
     Kafka->>+Consumer: @KafkaListener
     Consumer->>Consumer: JSON変換
     Consumer->>+Repository: save(message)
-    Repository->>+Redis: 保存処理
+    Repository->>+Redis: 保存処理（Redis Sets使用）
     Redis-->>-Repository: OK
     Repository-->>-Consumer: Message
     Consumer-->>-Kafka: ACK
+    
+    Service-->>-Controller: Message
+    Controller->>Controller: MessageResponse.from()
+    Controller-->>-Client: 201 Created + MessageResponse
 ```
 
 ## メッセージ取得フロー
@@ -64,7 +56,8 @@ sequenceDiagram
     Controller->>+Service: getAllMessages()
     Service->>+Repository: findAll()
     
-    Repository->>+Redis: lrange("messages", 0, -1)
+    Repository->>+Redis: smembers("messages")
+    Note over Repository,Redis: Redis Sets使用で重複なし
     Redis-->>-Repository: messageIds[]
     
     loop messageIds
@@ -97,7 +90,7 @@ sequenceDiagram
     Controller->>+Service: getUrgentMessages()
     Service->>+Repository: findAll()
     
-    Repository->>+Redis: lrange("messages", 0, -1)
+    Repository->>+Redis: smembers("messages")
     Redis-->>-Repository: messageIds[]
     
     loop messageIds
@@ -141,9 +134,9 @@ sequenceDiagram
         alt 古いメッセージの場合
             Repository->>+Redis: delete("message:id")
             Redis-->>-Repository: OK
-            Repository->>+Redis: lrem("messages", messageId)
+            Repository->>+Redis: srem("messages", messageId)
             Redis-->>-Repository: OK
-            Repository->>+Redis: lrem("sender:xxx", messageId)
+            Repository->>+Redis: srem("sender:xxx", messageId)
             Redis-->>-Repository: OK
             Repository->>Repository: deletedCount++
         end
@@ -231,38 +224,53 @@ graph TD
 
 ## 開発・テスト用コマンド
 
-### Gradleタスク実行例
+### Docker環境での開発
 
 ```bash
-# アプリケーション起動
-./gradlew bootRun
+# 完全な環境起動
+docker-compose --profile local-infra up --build -d
 
-# 開発用設定でアプリケーション起動
-./gradlew runApp
+# アプリケーションのみ再ビルド
+docker-compose build app
+docker-compose restart app
 
-# テスト実行
-./gradlew test
+# ログ確認
+docker-compose logs -f app
+
+# テスト実行（コンテナ内）
+docker-compose exec app gradle test
 
 # JARビルド
-./gradlew bootJar
+docker-compose exec app gradle bootJar
 
 # 依存関係確認
-./gradlew dependencies
+docker-compose exec app gradle dependencies
 
 # 特定の依存関係詳細
-./gradlew dependencyInsight --dependency spring-kafka
+docker-compose exec app gradle dependencyInsight --dependency spring-kafka
 ```
 
 ### API テスト例
 
 ```bash
 # アプリケーション起動後
-curl -X POST http://localhost:8080/api/messages \
+curl -X POST http://localhost:8888/api/messages \
   -H "Content-Type: application/json" \
   -d '{"content": "Test message", "sender": "developer", "type": "INFO"}'
 
 # メッセージ確認
-curl http://localhost:8080/api/messages
+curl http://localhost:8888/api/messages
+```
+
+### CI/CD用コマンド
+
+```bash
+# GitHub Actions等のCI環境で
+docker build -t kafka-redis-playground .
+docker run --rm kafka-redis-playground gradle test jacocoTestReport
+
+# またはdocker-composeでテスト
+docker-compose run --rm app gradle test jacocoTestReport
 ```
 
 ## 注記
@@ -272,17 +280,18 @@ curl http://localhost:8080/api/messages
 - **ドメイン層の独立性**: `Message`クラスは外部技術に依存しない
 - **インターフェース分離**: `MessageRepository`と`MessagePublisher`でインフラ層を抽象化
 
-### 非同期処理
-- Kafkaへの送信は同期的だが、受信処理は非同期
-- メッセージの二重保存を避けるため、Redisでの重複チェックが可能
+### 非同期処理とデータ整合性
+- **単一保存**: Publisherは送信のみ、Consumerが保存を担当
+- **Redis Sets使用**: 重複メッセージIDを自動で排除
+- **観察可能**: 3秒遅延でKafka処理フローを可視化
 
 ### エラー処理
 - バリデーションエラーは400番台で返却
 - インフラエラーは500番台で返却
 - Kafkaの非同期エラーはログ出力とDLQ（将来実装）で対応
 
-### ビルドツール
-- **Gradle 8.8**を使用
-- **Java 21**対応
-- **Spring Boot 3.3.2**との統合
-- パフォーマンス最適化設定済み（`gradle.properties`）
+### 技術スタック
+- **Amazon Corretto 21** - 企業グレードJava環境
+- **Spring Boot 3.5.4** - 最新フレームワーク
+- **Gradle 8.10.2** - モダンビルドツール
+- **完全Docker化** - ローカル開発からプロダクションまで
