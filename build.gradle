@@ -77,8 +77,9 @@ task runApp(type: JavaExec) {
     jvmArgs = [
         '-Xms256m',
         '-Xmx512m',
-        '-Dspring.devtools.restart.enabled=true',
-        '--enable-preview' // Java 23の新機能を有効化
+        '-Dspring.devtools.restart.enabled=true'
+        // Java 23のプレビュー機能は必要に応じて有効化
+        // '--enable-preview'
     ]
 }
 
@@ -106,14 +107,17 @@ task checkFormat {
     }
 }
 
-// パフォーマンス最適化のための設定
+// Java 23のコンパイル設定（プレビュー機能は必要に応じて有効化）
 tasks.withType(JavaCompile) {
     options.compilerArgs += [
-        '--enable-preview',
-        '-Xlint:preview'
+        '-Xlint:unchecked',
+        '-Xlint:deprecation'
     ]
+    // プレビュー機能を使用する場合は以下をコメントアウト
+    // options.compilerArgs += ['--enable-preview']
 }
 
 tasks.withType(Test) {
-    jvmArgs += '--enable-preview'
+    // プレビュー機能を使用する場合は以下をコメントアウト
+    // jvmArgs += '--enable-preview'
 }
