@@ -54,7 +54,7 @@ java -jar build/libs/kafka-redis-playground-1.0.0.jar
 
 ```bash
 # Health check
-curl http://localhost:8080/actuator/health
+curl http://localhost:8888/actuator/health
 
 # Expected response:
 # {"status":"UP"}
@@ -64,10 +64,10 @@ curl http://localhost:8080/actuator/health
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| **Spring Boot App** | http://localhost:8080 | Main application with REST API |
+| **Spring Boot App** | http://localhost:8888 | Main application with REST API |
 | **Kafka UI** | http://localhost:8081 | Web interface for Kafka management |
 | **Redis Insight** | http://localhost:8001 | Web interface for Redis management |
-| **Actuator** | http://localhost:8080/actuator | Application monitoring endpoints |
+| **Actuator** | http://localhost:8888/actuator | Application monitoring endpoints |
 
 ## 🧪 Testing the Application
 
@@ -75,7 +75,7 @@ curl http://localhost:8080/actuator/health
 
 ```bash
 # Create an INFO message
-curl -X POST http://localhost:8080/api/messages \
+curl -X POST http://localhost:8888/api/messages \
   -H "Content-Type: application/json" \
   -d '{
     "content": "Hello, Kafka and Redis with Java 23!",
@@ -84,7 +84,7 @@ curl -X POST http://localhost:8080/api/messages \
   }'
 
 # Create an ERROR message (urgent)
-curl -X POST http://localhost:8080/api/messages \
+curl -X POST http://localhost:8888/api/messages \
   -H "Content-Type: application/json" \
   -d '{
     "content": "System error occurred",
@@ -97,26 +97,26 @@ curl -X POST http://localhost:8080/api/messages \
 
 ```bash
 # Get all messages
-curl http://localhost:8080/api/messages
+curl http://localhost:8888/api/messages
 
 # Get urgent messages only (ERROR, WARNING)
-curl http://localhost:8080/api/messages/urgent
+curl http://localhost:8888/api/messages/urgent
 
 # Get messages by sender
-curl http://localhost:8080/api/messages/sender/developer
+curl http://localhost:8888/api/messages/sender/developer
 
 # Get specific message by ID
-curl http://localhost:8080/api/messages/{message-id}
+curl http://localhost:8888/api/messages/{message-id}
 ```
 
 ### Message Management
 
 ```bash
 # Delete specific message
-curl -X DELETE http://localhost:8080/api/messages/{message-id}
+curl -X DELETE http://localhost:8888/api/messages/{message-id}
 
 # Cleanup old messages (older than 60 minutes)
-curl -X DELETE "http://localhost:8080/api/messages/cleanup?minutes=60"
+curl -X DELETE "http://localhost:8888/api/messages/cleanup?minutes=60"
 ```
 
 ## 🛠️ Development Commands
@@ -183,10 +183,14 @@ docker-compose up -d
 
 **Port Conflicts**
 ```bash
-# Check what's using port 8080
-lsof -i :8080
+# Check what's using port 8888
+lsof -i :8888
 # Kill the process if needed
-kill -9 $(lsof -t -i:8080)
+kill -9 $(lsof -t -i:8888)
+
+# If you need to use a different port, set environment variable:
+export SERVER_PORT=9999
+./gradlew bootRun
 ```
 
 **Docker Issues**
@@ -215,7 +219,7 @@ docker-compose up -d
 ```bash
 # Application settings
 export SPRING_PROFILES_ACTIVE=dev
-export SERVER_PORT=8080
+export SERVER_PORT=8888  # Default port (can be changed)
 
 # Kafka settings
 export SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
@@ -261,14 +265,14 @@ This project implements **Onion Architecture** with the following layers:
 
 ```bash
 # Application health and metrics
-curl http://localhost:8080/actuator/health
-curl http://localhost:8080/actuator/info
-curl http://localhost:8080/actuator/metrics
-curl http://localhost:8080/actuator/prometheus
+curl http://localhost:8888/actuator/health
+curl http://localhost:8888/actuator/info
+curl http://localhost:8888/actuator/metrics
+curl http://localhost:8888/actuator/prometheus
 
 # Application configuration
-curl http://localhost:8080/actuator/env
-curl http://localhost:8080/actuator/configprops
+curl http://localhost:8888/actuator/env
+curl http://localhost:8888/actuator/configprops
 ```
 
 ### Log Monitoring
