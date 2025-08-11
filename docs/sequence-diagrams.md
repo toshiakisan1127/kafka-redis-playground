@@ -148,7 +148,7 @@ sequenceDiagram
     Controller-->>-Client: 200 OK + CleanupResponse
 ```
 
-## エラーハンドリングフロー
+## Kafka送信エラーフロー
 
 ```mermaid
 sequenceDiagram
@@ -158,29 +158,27 @@ sequenceDiagram
     participant Publisher as KafkaMessagePublisher
     participant Kafka as Kafka Broker
 
+    Client->>+Controller: POST /api/messages
+    Controller->>+Service: createAndSendMessage()
+    Service->>+Publisher: publish(message)
+    Publisher->>+Kafka: send()
+    Kafka-->>-Publisher: Exception
+    Publisher->>Publisher: ログ出力
+    Publisher-->>-Service: RuntimeException
+    Service-->>-Controller: RuntimeException
+    Controller-->>-Client: 500 Internal Server Error
+```
+
+## バリデーションエラーフロー
+
+```mermaid
+sequenceDiagram
+    participant Client as クライアント
+    participant Controller as MessageController
+
     Client->>+Controller: POST /api/messages (不正データ)
-    Controller->>Controller: @Valid検証
-    
-    alt バリデーションエラー
-        Controller-->>-Client: 400 Bad Request
-    else バリデーション成功
-        Controller->>+Service: createAndSendMessage()
-        Service->>+Publisher: publish(message)
-        Publisher->>+Kafka: send()
-        
-        alt Kafka送信失敗
-            Kafka-->>-Publisher: Exception
-            Publisher->>Publisher: ログ出力
-            Publisher-->>-Service: RuntimeException
-            Service-->>-Controller: RuntimeException
-            Controller-->>-Client: 500 Internal Server Error
-        else Kafka送信成功
-            Kafka-->>-Publisher: Success
-            Publisher-->>-Service: void
-            Service-->>-Controller: Message
-            Controller-->>-Client: 201 Created
-        end
-    end
+    Controller->>Controller: @Valid検証失敗
+    Controller-->>-Client: 400 Bad Request
 ```
 
 ## 非同期Consumer エラーフロー
@@ -189,9 +187,7 @@ sequenceDiagram
 sequenceDiagram
     participant Kafka as Kafka Broker
     participant Consumer as KafkaMessageConsumer
-    participant Repository as RedisMessageRepository
 
-    Note over Kafka,Consumer: 非同期エラー処理
     Kafka->>+Consumer: 不正なメッセージ
     Consumer->>Consumer: JSON変換失敗
     Consumer->>Consumer: ログ出力
@@ -199,7 +195,7 @@ sequenceDiagram
     Consumer-->>-Kafka: NACK
 ```
 
-## Redisエラーハンドリングフロー
+## Redis接続エラーフロー
 
 ```mermaid
 sequenceDiagram
@@ -212,68 +208,39 @@ sequenceDiagram
     Client->>+Controller: GET /api/messages
     Controller->>+Service: getAllMessages()
     Service->>+Repository: findAll()
-    
-    alt Redis接続成功
-        Repository->>+Redis: smembers("messages")
-        Redis-->>-Repository: messageIds[]
-        
-        loop messageIds
-            Repository->>+Redis: get("message:id")
-            alt データ取得成功
-                Redis-->>-Repository: messageJson
-            else データ取得失敗
-                Redis-->>-Repository: null
-                Repository->>Repository: ログ出力（警告）
-            end
-        end
-        
-        Repository-->>-Service: List<Message>
-        Service-->>-Controller: List<Message>
-        Controller-->>-Client: 200 OK + List<MessageResponse>
-        
-    else Redis接続失敗
-        Repository->>+Redis: smembers("messages")
-        Redis-->>-Repository: ConnectionException
-        Repository->>Repository: ログ出力（エラー）
-        Repository-->>-Service: RedisConnectionException
-        Service-->>-Controller: RedisConnectionException
-        Controller-->>-Client: 503 Service Unavailable
-    end
+    Repository->>+Redis: smembers("messages")
+    Redis-->>-Repository: ConnectionException
+    Repository->>Repository: ログ出力（エラー）
+    Repository-->>-Service: RedisConnectionException
+    Service-->>-Controller: RedisConnectionException
+    Controller-->>-Client: 503 Service Unavailable
 ```
 
-## バリデーションエラーフロー
+## Redis データ取得エラーフロー
 
 ```mermaid
 sequenceDiagram
-    participant Client as クライアント
-    participant Controller as MessageController
-    participant GlobalHandler as @ControllerAdvice
+    participant Repository as RedisMessageRepository
+    participant Redis as Redis
 
-    Client->>+Controller: POST /api/messages (不正データ)
-    Controller->>Controller: @Valid検証失敗
-    Controller->>+GlobalHandler: MethodArgumentNotValidException
-    GlobalHandler->>GlobalHandler: エラーレスポンス作成
-    GlobalHandler-->>-Controller: ErrorResponse
-    Controller-->>-Client: 400 Bad Request + ErrorResponse
+    Repository->>+Redis: get("message:id")
+    Redis-->>-Repository: null
+    Repository->>Repository: ログ出力（警告）
+    Note over Repository: 欠損データスキップ
 ```
 
-## ビジネスロジックエラーフロー
+## グローバルエラーハンドリングフロー
 
 ```mermaid
 sequenceDiagram
-    participant Client as クライアント
     participant Controller as MessageController
-    participant Service as MessageService
     participant GlobalHandler as @ControllerAdvice
+    participant Client as クライアント
 
-    Client->>+Controller: POST /api/messages
-    Controller->>+Service: createAndSendMessage()
-    Service->>Service: ビジネスルール検証失敗
-    Service-->>-Controller: IllegalArgumentException
-    Controller->>+GlobalHandler: IllegalArgumentException
+    Controller->>+GlobalHandler: Exception
     GlobalHandler->>GlobalHandler: エラーレスポンス作成
     GlobalHandler-->>-Controller: ErrorResponse
-    Controller-->>-Client: 422 Unprocessable Entity + ErrorResponse
+    Controller-->>Client: HTTP Error + ErrorResponse
 ```
 
 ## 依存関係とアーキテクチャ
@@ -370,16 +337,16 @@ docker-compose run --rm app ./gradlew test jacocoTestReport
 - **Redis Sets使用**: 重複メッセージIDを自動で排除
 - **観察可能**: 3秒遅延でKafka処理フローを可視化
 
-### エラー処理
-- **バリデーションエラー**: 400 Bad Request
-- **ビジネスロジックエラー**: 422 Unprocessable Entity
-- **Kafkaエラー**: 500 Internal Server Error
-- **Redisエラー**: 503 Service Unavailable
+### エラー処理の種類
+- **Kafka送信エラー**: 500 Internal Server Error
+- **バリデーションエラー**: 400 Bad Request  
+- **Redis接続エラー**: 503 Service Unavailable
+- **非同期Consumerエラー**: NACK + ログ出力
 
 ### エラーハンドリング修正点
-- **パーティシパント管理**: 非アクティブエラーを完全修正
-- **フロー分離**: 各エラータイプを独立したフローに分離
-- **統一的処理**: `@ControllerAdvice`によるグローバルエラーハンドリング
+- **単純化**: 各エラータイプを独立したシンプルなフローに分離
+- **パーティシパント管理**: 非アクティブエラーを完全排除
+- **明確な責任分離**: 同期・非同期・インフラエラーの区別
 
 ### 技術スタック
 - **Amazon Corretto 21** - 企業グレードJava環境
