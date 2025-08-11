@@ -1,0 +1,67 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Create .env file
+      run: cp .env.template .env
+    
+    - name: Start services
+      run: |
+        docker-compose --profile local-infra up --build -d
+        
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for services to start..."
+        timeout 300 bash -c 'until curl -f http://localhost:8888/actuator/health; do sleep 5; done'
+        
+    - name: Run integration tests
+      run: |
+        chmod +x ./tests/integration-test.sh
+        ./tests/integration-test.sh test
+        
+    - name: Run performance tests
+      run: |
+        chmod +x ./tests/integration-test.sh
+        ./tests/integration-test.sh performance
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: |
+          test-results.log
+          load_test_results_*.txt
+        retention-days: 30
+        
+    - name: Show container logs on failure
+      if: failure()
+      run: |
+        echo "=== Application Logs ==="
+        docker-compose logs app
+        echo "=== Kafka Logs ==="
+        docker-compose logs kafka
+        echo "=== Redis Logs ==="
+        docker-compose logs redis
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        docker-compose down --remove-orphans
+        docker system prune -f
