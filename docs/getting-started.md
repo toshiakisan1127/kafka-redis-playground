@@ -32,21 +32,22 @@ docker-compose up -d
 docker-compose ps
 
 # Expected output:
-# kafka-redis-playground-kafka-1        Running
-# kafka-redis-playground-redis-1        Running
-# kafka-redis-playground-kafka-ui-1     Running
-# kafka-redis-playground-redis-insight-1 Running
+# zookeeper      Running
+# kafka          Running
+# redis          Running
+# redis-insight  Running
+# kafka-ui       Running
 ```
 
 ### 3. Verify Infrastructure
 ```bash
 # Check Kafka is ready
-docker exec -it kafka-redis-playground-kafka-1 kafka-topics.sh \
+docker exec -it kafka kafka-topics.sh \
   --bootstrap-server localhost:9092 \
   --list
 
 # Check Redis is ready
-docker exec -it kafka-redis-playground-redis-1 redis-cli ping
+docker exec -it redis redis-cli ping
 # Expected: PONG
 ```
 
@@ -81,7 +82,7 @@ curl http://localhost:8888/actuator/info
 |---------|-----|---------|
 | **Spring Boot API** | http://localhost:8888 | Main application |
 | **Actuator Health** | http://localhost:8888/actuator/health | Health monitoring |
-| **Kafka UI** | http://localhost:8081 | Kafka cluster management |
+| **Kafka UI** | http://localhost:8080 | Kafka cluster management |
 | **Redis Insight** | http://localhost:8001 | Redis data browser |
 
 ## Quick API Test
@@ -114,10 +115,10 @@ curl http://localhost:8888/api/messages/urgent | jq
 ### Clear All Redis Data
 ```bash
 # Option 1: Clear all Redis data (recommended)
-docker exec -it kafka-redis-playground-redis-1 redis-cli FLUSHALL
+docker exec -it redis redis-cli FLUSHALL
 
 # Option 2: Clear only current database (db 0)
-docker exec -it kafka-redis-playground-redis-1 redis-cli FLUSHDB
+docker exec -it redis redis-cli FLUSHDB
 
 # Option 3: Via Redis Insight UI
 # - Go to http://localhost:8001
@@ -125,14 +126,14 @@ docker exec -it kafka-redis-playground-redis-1 redis-cli FLUSHDB
 # - Use "Flush Database" button
 
 # Verify Redis is empty
-docker exec -it kafka-redis-playground-redis-1 redis-cli KEYS "*"
+docker exec -it redis redis-cli KEYS "*"
 # Should return: (empty array)
 ```
 
 ### Clear Kafka Topics (Optional)
 ```bash
 # Delete and recreate the messages topic
-docker exec -it kafka-redis-playground-kafka-1 kafka-topics.sh \
+docker exec -it kafka kafka-topics.sh \
   --bootstrap-server localhost:9092 \
   --delete --topic messages
 
@@ -158,7 +159,7 @@ docker-compose up -d
 
 ### 1. Check Kafka Integration
 ```bash
-# In Kafka UI (http://localhost:8081)
+# In Kafka UI (http://localhost:8080)
 # - Navigate to Topics → messages
 # - You should see the message you created
 # - Check partitions and consumer groups
@@ -189,7 +190,7 @@ docker-compose up -d
 - **Application**: 8888
 - **Kafka**: 9092
 - **Redis**: 6379
-- **Kafka UI**: 8081
+- **Kafka UI**: 8080
 - **Redis Insight**: 8001
 
 ### Environment Variables
@@ -220,7 +221,7 @@ export SPRING_DATA_REDIS_PORT=6379
 ### Testing Different Scenarios
 ```bash
 # 1. Clear Redis data
-docker exec -it kafka-redis-playground-redis-1 redis-cli FLUSHALL
+docker exec -it redis redis-cli FLUSHALL
 
 # 2. Send test messages
 curl -X POST http://localhost:8888/api/messages \
@@ -235,17 +236,26 @@ curl http://localhost:8888/api/messages | jq 'length'
 ### Common Commands
 ```bash
 # Check Redis keys
-docker exec -it kafka-redis-playground-redis-1 redis-cli KEYS "*"
+docker exec -it redis redis-cli KEYS "*"
 
 # Count Redis keys
-docker exec -it kafka-redis-playground-redis-1 redis-cli DBSIZE
+docker exec -it redis redis-cli DBSIZE
 
 # Monitor Redis commands in real-time
-docker exec -it kafka-redis-playground-redis-1 redis-cli MONITOR
+docker exec -it redis redis-cli MONITOR
 
 # Check Kafka consumer groups
-docker exec -it kafka-redis-playground-kafka-1 kafka-consumer-groups.sh \
+docker exec -it kafka kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --list
+
+# List Kafka topics
+docker exec -it kafka kafka-topics.sh \
+  --bootstrap-server localhost:9092 --list
+
+# Check topic details
+docker exec -it kafka kafka-topics.sh \
+  --bootstrap-server localhost:9092 \
+  --describe --topic messages
 ```
 
 ## Next Steps
