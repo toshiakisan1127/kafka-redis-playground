@@ -90,7 +90,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.corretto
+      dockerfile: Dockerfile
     container_name: kafka-redis-app
     ports:
       - "${SERVER_PORT:-8888}:8888"
