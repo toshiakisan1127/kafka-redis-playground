@@ -5,17 +5,17 @@ A hands-on learning playground for exploring Apache Kafka and Redis integration 
 ## 🚀 Tech Stack
 
 - **Spring Boot 3.5.4** - Latest stable Java application framework
-- **Java 23** - Latest stable JDK
+- **Amazon Corretto 21** - Enterprise-grade Java runtime
 - **Apache Kafka** - Distributed event streaming platform
 - **Redis** - In-memory data structure store
 - **Gradle 8.10.2** - Modern build tool
-- **Docker Compose** - Container orchestration
+- **Docker Compose** - Complete containerization
 
 ## 🏃‍♂️ Quick Start
 
 ### Prerequisites
-- Java 23 (configured in your IDE)
-- Docker and Docker Compose
+- **Docker** and **Docker Compose** - For running the entire stack
+- **Git** - For cloning the repository
 
 ### Get Started
 ```bash
@@ -23,11 +23,11 @@ A hands-on learning playground for exploring Apache Kafka and Redis integration 
 git clone https://github.com/toshiakisan1127/kafka-redis-playground.git
 cd kafka-redis-playground
 
-# 2. Start infrastructure
-docker-compose up -d
+# 2. Configure environment (optional)
+cp .env.template .env
 
-# 3. Run the application
-./gradlew bootRun
+# 3. Start everything with Docker
+docker-compose --profile local-infra up --build -d
 
 # 4. Test the API
 curl http://localhost:8888/actuator/health
@@ -37,8 +37,8 @@ curl http://localhost:8888/actuator/health
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| **Spring Boot App** | http://localhost:8888 | REST API with Onion Architecture |
-| **Kafka UI** | http://localhost:8081 | Kafka management interface |
+| **Spring Boot API** | http://localhost:8888 | REST API with Onion Architecture |
+| **Kafka UI** | http://localhost:8080 | Kafka management interface |
 | **Redis Insight** | http://localhost:8001 | Redis management interface |
 
 ## 🧪 Try the API
@@ -58,6 +58,22 @@ curl http://localhost:8888/api/messages
 
 # Get urgent messages
 curl http://localhost:8888/api/messages/urgent
+```
+
+## 🎬 Observable Processing
+
+Watch Kafka message processing in real-time with **3-second delays**:
+
+```bash
+# Send multiple messages
+for i in {1..5}; do
+  curl -X POST http://localhost:8888/api/messages \
+    -H "Content-Type: application/json" \
+    -d "{\"content\": \"Demo message $i\", \"sender\": \"demo\", \"type\": \"INFO\"}"
+done
+
+# Watch processing in Kafka UI: http://localhost:8080
+# Follow logs: docker-compose logs -f app
 ```
 
 ## 📚 Documentation
@@ -82,19 +98,35 @@ This project implements **Onion Architecture** with clean separation of concerns
 ```
 
 **Key Features:**
-- Domain-Driven Design with rich business models
-- Event sourcing with Kafka message streaming
-- Redis caching for performance optimization
-- Complete test coverage with TestContainers
+- **No Duplicate Messages** - Redis Sets prevent ID duplicates
+- **Observable Processing** - 3-second delays for demonstration
+- **Environment Flexibility** - Local dev + production ready
+- **Complete Docker Stack** - No local Java installation needed
 
 ## 🎯 What You'll Learn
 
 - **Onion Architecture** - Clean, testable, maintainable code structure
 - **Event-Driven Architecture** - Kafka producer/consumer patterns
-- **Caching Strategies** - Redis integration with Spring Boot
-- **Modern Java** - Java 23 features and best practices
+- **Caching Strategies** - Redis Sets for duplicate prevention
+- **Modern Java** - Amazon Corretto 21 with enterprise features
 - **Spring Boot 3.5** - Latest framework capabilities
-- **Docker Integration** - Containerized development workflow
+- **Docker Integration** - Complete containerized development
+
+## 🚀 Deployment Options
+
+### Local Development
+```bash
+# Full stack with local infrastructure
+docker-compose --profile local-infra up --build -d
+```
+
+### Production Environment
+```bash
+# Using managed Kafka/Redis services
+KAFKA_BOOTSTRAP_SERVERS=kafka-prod.com:9092 \
+REDIS_HOST=redis-prod.com \
+docker-compose up --build -d
+```
 
 ## 🤝 Contributing
 
@@ -106,4 +138,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Ready to explore modern event-driven architecture?** 🚀
+**Ready to explore modern event-driven architecture with Amazon Corretto?** ☕🚀
