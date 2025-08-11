@@ -1,4 +1,4 @@
-# Use official Gradle image with JDK 23
+# Use Gradle image with JDK 21 (more stable than JDK 23)
 FROM gradle:8.10.2-jdk21 AS build
 
 # Set working directory
@@ -14,8 +14,8 @@ COPY src ./src
 # Build the application
 RUN gradle bootJar --no-daemon
 
-# Use JDK 23 for runtime
-FROM openjdk:23-jdk-slim
+# Use JDK 21 for runtime (more stable than JDK 23)
+FROM openjdk:21-jdk-slim
 
 # Set working directory
 WORKDIR /app
