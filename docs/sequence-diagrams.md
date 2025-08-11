@@ -229,6 +229,42 @@ graph TD
     classDef infrastructure fill:#e8f5e8
 ```
 
+## 開発・テスト用コマンド
+
+### Gradleタスク実行例
+
+```bash
+# アプリケーション起動
+./gradlew bootRun
+
+# 開発用設定でアプリケーション起動
+./gradlew runApp
+
+# テスト実行
+./gradlew test
+
+# JARビルド
+./gradlew bootJar
+
+# 依存関係確認
+./gradlew dependencies
+
+# 特定の依存関係詳細
+./gradlew dependencyInsight --dependency spring-kafka
+```
+
+### API テスト例
+
+```bash
+# アプリケーション起動後
+curl -X POST http://localhost:8080/api/messages \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Test message", "sender": "developer", "type": "INFO"}'
+
+# メッセージ確認
+curl http://localhost:8080/api/messages
+```
+
 ## 注記
 
 ### アーキテクチャの特徴
@@ -244,3 +280,9 @@ graph TD
 - バリデーションエラーは400番台で返却
 - インフラエラーは500番台で返却
 - Kafkaの非同期エラーはログ出力とDLQ（将来実装）で対応
+
+### ビルドツール
+- **Gradle 8.8**を使用
+- **Java 21**対応
+- **Spring Boot 3.3.2**との統合
+- パフォーマンス最適化設定済み（`gradle.properties`）
