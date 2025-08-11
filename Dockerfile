@@ -1,5 +1,5 @@
-# Use Eclipse Temurin JDK 23 for Gradle build
-FROM eclipse-temurin:23-jdk AS build
+# Use OpenJDK 23 base image
+FROM openjdk:23-jdk AS build
 
 # Install Gradle manually
 RUN apt-get update && apt-get install -y wget unzip && \
@@ -23,8 +23,8 @@ COPY src ./src
 # Build the application
 RUN gradle bootJar --no-daemon
 
-# Use JDK 23 for runtime
-FROM eclipse-temurin:23-jdk-slim
+# Use OpenJDK 23 for runtime
+FROM openjdk:23-jdk-slim
 
 # Set working directory
 WORKDIR /app
