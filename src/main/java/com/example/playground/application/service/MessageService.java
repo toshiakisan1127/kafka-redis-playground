@@ -40,6 +40,14 @@ public class MessageService {
     }
     
     /**
+     * 既存のメッセージをKafkaに送信する（Multi Producer/Consumer Demo用）
+     * @param message 送信するメッセージ
+     */
+    public void sendMessage(Message message) {
+        messagePublisher.publish(message);
+    }
+    
+    /**
      * IDでメッセージを取得する
      * @param id メッセージID
      * @return メッセージ（存在しない場合はOptional.empty()）

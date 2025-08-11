@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Zookeeper for Kafka (Local Development Only)
   zookeeper:
@@ -36,6 +34,10 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_JMX_PORT: 9997
       KAFKA_JMX_HOSTNAME: localhost
+      # Consumer Groupの負荷分散を観察しやすくするための設定
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_NUM_PARTITIONS: 3  # デフォルトパーティション数を3に設定
     networks:
       - kafka-redis-network
     profiles:
@@ -104,7 +106,7 @@ services:
       SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
       SPRING_DATA_REDIS_DATABASE: ${REDIS_DATABASE:-0}
       
-      APP_KAFKA_CONSUMER_PROCESSING_DELAY: ${PROCESSING_DELAY:-0}
+      APP_KAFKA_CONSUMER_PROCESSING_DELAY: ${PROCESSING_DELAY:-1000}
       
       LOGGING_LEVEL_COM_EXAMPLE_PLAYGROUND: ${LOG_LEVEL_APP:-INFO}
       LOGGING_LEVEL_ROOT: ${LOG_LEVEL_ROOT:-INFO}
