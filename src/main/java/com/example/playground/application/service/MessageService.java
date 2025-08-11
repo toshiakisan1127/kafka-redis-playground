@@ -23,7 +23,8 @@ public class MessageService {
     }
     
     /**
-     * メッセージを作成し、Kafkaに送信してリポジトリに保存する
+     * メッセージを作成してKafkaに送信する
+     * Redis保存はKafka Consumerが担当（重複回避）
      * @param content メッセージ内容
      * @param sender 送信者
      * @param type メッセージタイプ
@@ -32,11 +33,10 @@ public class MessageService {
     public Message createAndSendMessage(String content, String sender, MessageType type) {
         Message message = Message.create(content, sender, type);
         
-        // Kafkaに送信
+        // Kafkaに送信（Consumer経由でRedisに保存される）
         messagePublisher.publish(message);
         
-        // リポジトリに保存
-        return messageRepository.save(message);
+        return message;
     }
     
     /**
