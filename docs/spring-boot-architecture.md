@@ -1,11 +1,11 @@
 # Spring Boot Application Structure
 
-このディレクトリにはSpring Bootアプリケーションが含まれています。オニオンアーキテクチャを採用し、最新の**Spring Boot 3.5.4**と**Java 23**を使用したKafkaとRedisのメッセージング システムです。
+このディレクトリにはSpring Bootアプリケーションが含まれています。オニオンアーキテクチャを採用し、最新の**Spring Boot 3.5.4**と**Amazon Corretto 21**を使用したKafkaとRedisのメッセージング システムです。
 
 ## 技術スタック
 
 - **Spring Boot 3.5.4** - 最新安定版フレームワーク
-- **Java 23** - 最新安定版JDK（プレビュー機能対応）
+- **Amazon Corretto 21** - 企業グレードJava実行環境
 - **Gradle 8.10.2** - モダンビルドツール
 - **Apache Kafka 3.9+** - イベントストリーミング
 - **Redis 7.0+** - インメモリデータストア
@@ -63,48 +63,52 @@ src/main/java/com/example/playground/
 ### リクエスト例
 
 ```bash
-# メッセージ作成（Java 23対応）
-curl -X POST http://localhost:8080/api/messages \
+# メッセージ作成（Amazon Corretto 21対応）
+curl -X POST http://localhost:8888/api/messages \
   -H "Content-Type: application/json" \
   -d '{
-    "content": "Hello from Java 23 with Spring Boot 3.5.4!",
+    "content": "Hello from Amazon Corretto 21 with Spring Boot 3.5.4!",
     "sender": "developer",
     "type": "INFO"
   }'
 
 # 全メッセージ取得
-curl http://localhost:8080/api/messages
+curl http://localhost:8888/api/messages
 
 # 緊急メッセージ取得
-curl http://localhost:8080/api/messages/urgent
+curl http://localhost:8888/api/messages/urgent
 ```
 
 ## 起動方法
 
 ### 前提条件
-- **Java 23** のインストール
+- **Amazon Corretto 21** のインストール（Docker使用時は不要）
 - **Docker と Docker Compose** のインストール
 
-### Java 23 インストール
+### Amazon Corretto 21 インストール
 
 ```bash
 # SDKMAN を使用（推奨）
 curl -s "https://get.sdkman.io" | bash
-sdk install java 23.0.1-oracle
+sdk install java 21.0.1-amzn
 
 # バージョン確認
 java --version
-# 期待値: java 23.x.x
+# 期待値: openjdk 21.x.x Amazon Corretto
 ```
 
 ### アプリケーション起動
 
 1. **インフラサービス起動**:
 ```bash
-docker-compose up -d
+# 完全なローカル環境（推奨）
+docker-compose --profile local-infra up --build -d
+
+# アプリケーションのみ（外部Kafka/Redisを使用）
+docker-compose up --build -d
 ```
 
-2. **Spring Bootアプリケーション起動**:
+2. **ローカル開発でSpring Bootアプリケーション起動**:
 ```bash
 # 標準起動
 ./gradlew bootRun
@@ -114,7 +118,7 @@ docker-compose up -d
 
 # プロダクション用ビルド
 ./gradlew bootJar
-java --enable-preview -jar build/libs/kafka-redis-playground-1.0.0.jar
+java -jar build/libs/kafka-redis-playground-1.0.0.jar
 ```
 
 ## Gradleタスク
@@ -145,22 +149,21 @@ java --enable-preview -jar build/libs/kafka-redis-playground-1.0.0.jar
 ./gradlew buildDockerImage       # Dockerイメージビルド
 ```
 
-## Java 23 の新機能
+## Amazon Corretto 21 の特徴
 
-このプロジェクトではJava 23の以下の機能を活用できます：
+このプロジェクトではAmazon Corretto 21の以下の特徴を活用しています：
 
-### プレビュー機能の有効化
-- `--enable-preview` フラグでプレビュー機能を有効化
-- Stream Gatherers、Scoped Values等の新機能
-- Flexible Constructor Bodies
+### 企業グレードの安定性
+- AWS最適化されたOpenJDK分散
+- 長期サポート（LTS）版
+- プロダクション環境での実績
 
-### ビルド設定
+### パフォーマンス最適化
 ```gradle
 // build.gradle で自動設定済み
-tasks.withType(JavaCompile) {
-    options.compilerArgs += [
-        '--enable-preview',
-        '-Xlint:preview'
+tasks.withType(JavaCompile) {\n    options.compilerArgs += [
+        '-Xlint:unchecked',
+        '-Xlint:deprecation'
     ]
 }
 ```
@@ -173,7 +176,7 @@ tasks.withType(JavaCompile) {
 ```properties
 # アプリケーション設定（Spring Boot 3.5.4対応）
 spring.application.name=kafka-redis-playground
-server.port=8080
+server.port=8888
 
 # Kafka設定（最新バージョン対応）
 spring.kafka.bootstrap-servers=localhost:9092
@@ -190,7 +193,7 @@ logging.level.com.example.playground=DEBUG
 ### 環境変数
 ```bash
 export SPRING_PROFILES_ACTIVE=dev
-export JAVA_OPTS="--enable-preview -Xms256m -Xmx512m"
+export JAVA_OPTS="-Xms256m -Xmx512m"
 ```
 
 ## モニタリング
@@ -198,17 +201,17 @@ export JAVA_OPTS="--enable-preview -Xms256m -Xmx512m"
 ### Actuatorエンドポイント
 ```bash
 # ヘルスチェック
-curl http://localhost:8080/actuator/health
+curl http://localhost:8888/actuator/health
 
 # メトリクス
-curl http://localhost:8080/actuator/metrics
+curl http://localhost:8888/actuator/metrics
 
 # アプリケーション情報
-curl http://localhost:8080/actuator/info
+curl http://localhost:8888/actuator/info
 ```
 
 ### 管理UI
-- **Kafka UI**: http://localhost:8081
+- **Kafka UI**: http://localhost:8080
 - **Redis Insight**: http://localhost:8001
 
 ## テスト
@@ -226,10 +229,9 @@ curl http://localhost:8080/actuator/info
 
 ## パフォーマンス最適化
 
-### JVM設定（Java 23最適化）
+### JVM設定（Amazon Corretto 21最適化）
 ```bash
 export JAVA_OPTS="
-  --enable-preview
   -Xms256m
   -Xmx512m
   -XX:+UseZGC
@@ -242,21 +244,21 @@ export JAVA_OPTS="
 # gradle.properties で設定済み
 org.gradle.parallel=true
 org.gradle.caching=true
-org.gradle.jvmargs=-Xmx2048m --enable-preview
+org.gradle.jvmargs=-Xmx2048m
 ```
 
 ## トラブルシューティング
 
-### Java 23 関連
+### Amazon Corretto 21 関連
 ```bash
 # Java バージョン確認
 java --version
 
-# プレビュー機能確認
-java --enable-preview --version
+# Amazon Corretto確認
+java -XshowSettings:properties -version | grep java.vendor
 
 # SDKMAN でバージョン切り替え
-sdk use java 23.0.1-oracle
+sdk use java 21.0.1-amzn
 ```
 
 ### 依存関係の問題
@@ -280,12 +282,12 @@ sdk use java 23.0.1-oracle
 2. **ドメイン層の独立性**: ビジネスロジックが外部技術に依存しない
 3. **インターフェースによる抽象化**: リポジトリやサービスはインターフェースで定義
 4. **テスタビリティ**: 各層が独立してテスト可能
-5. **モダンJava活用**: Java 23の新機能を適切に活用
+5. **モダンJava活用**: Amazon Corretto 21の安定性を活用
 
 ## プロジェクト構成
 
 ```
-├── build.gradle                              # Gradle設定（Java 23対応）
+├── build.gradle                              # Gradle設定（Amazon Corretto 21対応）
 ├── gradle.properties                         # ビルド最適化設定
 ├── settings.gradle                           # プロジェクト設定
 ├── gradle/wrapper/                           # Gradle Wrapper
@@ -303,7 +305,7 @@ sdk use java 23.0.1-oracle
 
 ## 今後の拡張予定
 
-- **Java 23 新機能の活用**: Virtual Threads、Pattern Matching等
+- **Amazon Corretto 21の活用**: Virtual Threads、パフォーマンス最適化等
 - **Spring Boot 3.5の新機能**: 最新のSpring機能活用
 - **パフォーマンス最適化**: ZGCガベージコレクター活用
 - **モニタリング強化**: Micrometer Tracingとの統合
