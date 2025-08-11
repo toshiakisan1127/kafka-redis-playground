@@ -1,12 +1,12 @@
-rootProject.name = 'kafka-redis-playground'
-
-// プラグイン管理
+// プラグイン管理（最初に記述する必要があります）
 pluginManagement {
     repositories {
         gradlePluginPortal()
         mavenCentral()
     }
 }
+
+rootProject.name = 'kafka-redis-playground'
 
 // 依存関係解決の設定
 dependencyResolutionManagement {
