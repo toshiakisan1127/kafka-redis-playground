@@ -116,6 +116,7 @@ test_http_request() {
             else
                 record_test "$description" "FAIL" "Content check failed: expected '$content_check'"
                 echo "Response: $body" >> "$TEST_LOG"
+                echo "Full response body for debugging: $body" >&2
                 return 1
             fi
         else
@@ -128,6 +129,41 @@ test_http_request() {
         echo "Response: $body" >> "$TEST_LOG"
         return 1
     fi
+}
+
+# 緊急メッセージテスト（リトライ機能付き）
+test_urgent_messages_with_retry() {
+    local max_attempts=5
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        log "INFO" "Testing urgent messages (attempt $attempt/$max_attempts)"
+        
+        if [ "$method" = "GET" ]; then
+            response=$(curl -s -w "HTTPSTATUS:%{http_code}" "$API_URL/urgent")
+        fi
+        
+        http_code=$(echo "$response" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+        body=$(echo "$response" | sed -e 's/HTTPSTATUS:.*//')
+        
+        if [ "$http_code" = "200" ] && echo "$body" | grep -q "Critical error occurred"; then
+            record_test "Get urgent messages (with retry)" "PASS"
+            echo "Response: $body" >> "$TEST_LOG"
+            return 0
+        fi
+        
+        log "WARNING" "Urgent message not found yet, waiting... (attempt $attempt/$max_attempts)"
+        echo "Current response: $body" >> "$TEST_LOG"
+        
+        # Kafkaの処理を待機
+        sleep 5
+        attempt=$((attempt + 1))
+    done
+    
+    # 最終的に失敗
+    record_test "Get urgent messages (with retry)" "FAIL" "Urgent message not found after $max_attempts attempts"
+    echo "Final response: $body" >> "$TEST_LOG"
+    return 1
 }
 
 # 環境セットアップ
@@ -171,7 +207,7 @@ setup_environment() {
     
     # Kafkaとの接続待機
     log "INFO" "Kafkaサービスの接続を待機中..."
-    sleep 10
+    sleep 15  # CI環境では少し長めに待機
     
     return 0
 }
@@ -212,9 +248,14 @@ run_tests() {
     local success_data='{"content":"Operation completed","sender":"system","type":"SUCCESS"}'
     test_http_request "Create SUCCESS message" "POST" "$API_URL" "$success_data" "201" "Operation completed"
     
-    # Kafka処理を待機
-    log "INFO" "Kafka メッセージ処理を待機中..."
-    sleep 8
+    # Kafka処理を待機（CI環境では長めに）
+    if [ "$CI" = "true" ]; then
+        log "INFO" "CI環境: Kafka メッセージ処理を待機中..."
+        sleep 15
+    else
+        log "INFO" "Kafka メッセージ処理を待機中..."
+        sleep 8
+    fi
     
     # 7. 全メッセージ取得
     test_http_request "Get all messages" "GET" "$API_URL" "" "200" "Hello Integration Test"
@@ -222,8 +263,8 @@ run_tests() {
     # 8. 送信者でフィルタリング
     test_http_request "Get messages by sender" "GET" "$API_URL/sender/test-user" "" "200" "test-user"
     
-    # 9. 緊急メッセージ取得（ERROR タイプ）
-    test_http_request "Get urgent messages" "GET" "$API_URL/urgent" "" "200" "Critical error occurred"
+    # 9. 緊急メッセージ取得（ERROR タイプ）- リトライ機能付き
+    test_urgent_messages_with_retry
     
     # 10. 無効なメッセージタイプでテスト
     local invalid_data='{"content":"Invalid type test","sender":"test","type":"INVALID"}'
@@ -260,8 +301,12 @@ run_performance_test() {
     
     log "SUCCESS" "Performance test completed in $duration seconds"
     
-    # 処理待機
-    sleep 10
+    # 処理待機（CI環境では長めに）
+    if [ "$CI" = "true" ]; then
+        sleep 15
+    else
+        sleep 10
+    fi
     
     # 結果確認
     test_http_request "Get performance test messages" "GET" "$API_URL/sender/perf-test" "" "200"
