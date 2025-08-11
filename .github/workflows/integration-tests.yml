@@ -23,7 +23,7 @@ jobs:
     
     - name: Start services
       run: |
-        docker-compose --profile local-infra up --build -d
+        docker compose --profile local-infra up --build -d
         
     - name: Wait for services to be ready
       run: |
@@ -33,11 +33,14 @@ jobs:
     - name: Run integration tests
       run: |
         chmod +x ./tests/integration-test.sh
+        # CI環境向けに環境変数を設定
+        export CI=true
         ./tests/integration-test.sh test
         
     - name: Run performance tests
       run: |
         chmod +x ./tests/integration-test.sh
+        export CI=true
         ./tests/integration-test.sh performance
         
     - name: Upload test results
@@ -54,14 +57,14 @@ jobs:
       if: failure()
       run: |
         echo "=== Application Logs ==="
-        docker-compose logs app
+        docker compose logs app
         echo "=== Kafka Logs ==="
-        docker-compose logs kafka
+        docker compose logs kafka
         echo "=== Redis Logs ==="
-        docker-compose logs redis
+        docker compose logs redis
         
     - name: Cleanup
       if: always()
       run: |
-        docker-compose down --remove-orphans
+        docker compose down --remove-orphans
         docker system prune -f
